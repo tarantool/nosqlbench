@@ -1,0 +1,7 @@
+
+nosqlb - Micro-benchmarking NoSQL storage. Features include:
+
+	* Benchmarking support: tarantool, memcached, redis
+	* GNUPlot generation
+
+

@@ -1,0 +1,11 @@
+
+nosqlb have following dependencies:
+	* cmake
+	* libtnt (tarantool DB client C library)
+
+Optionally you can specify following build options:
+	cmake -DLIBTNT_INCLUDE=path
+	cmake -DLIBTNT_LIB=path
+
+Specify installation prefix:
+	cmake -DCMAKE_INSTALL_PREFIX=path
