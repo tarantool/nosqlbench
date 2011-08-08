@@ -1,5 +1,5 @@
 
-SET(nosqlb_bin  nosqbl)
+SET(nosqlb_bin  nosqlb)
 
 SET(nosqlb_libs tnt)
 SET(nosqlb_src

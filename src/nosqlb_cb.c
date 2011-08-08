@@ -38,9 +38,9 @@
 static void
 nosqlb_cb_error(struct tnt *t, char *name)
 {
-	printf("%s failed: %s", name, tnt_perror(t));
+	printf("%s failed: %s", name, tnt_strerror(t));
 	if (tnt_error(t) == TNT_ESYSTEM)
-		printf("(%s)", strerror(tnt_error_errno(t)));
+		printf("(%s)", strerror(tnt_errno(t)));
 	printf("\n");
 }
 
@@ -55,8 +55,8 @@ nosqlb_cb_recv(struct tnt *t, int count)
 			nosqlb_cb_error(t, "recv");
 		else {
 			if (tnt_error(t) != TNT_EOK)
-				printf("server respond: %s (op: %d, reqid: %lu, code: %lu, count: %lu)\n",
-					tnt_perror(t), TNT_RECV_OP(&rcv),
+				printf("server respond: %s (op: %d, reqid: %d, code: %d, count: %d)\n",
+					tnt_strerror(t), TNT_RECV_OP(&rcv),
 					TNT_RECV_ID(&rcv),
 					TNT_RECV_CODE(&rcv),
 					TNT_RECV_COUNT(&rcv));
@@ -83,9 +83,9 @@ nosqlb_cb_insert_do(struct tnt *t, char *name, int bsize, int count, int flags,
 		char key[32];
 		int key_len = snprintf(key, sizeof(key), "key_%d_%d", bsize, i);
 		struct tnt_tuple tu;
-		tnt_tuple_init(&tu, 2);
-		tnt_tuple_set(&tu, 0, key, key_len);
-		tnt_tuple_set(&tu, 1, buf, bsize);
+		tnt_tuple_init(&tu);
+		tnt_tuple_add(&tu, key, key_len);
+		tnt_tuple_add(&tu, buf, bsize);
 		if (tnt_insert(t, i, 0, flags, &tu) == -1)
 			nosqlb_cb_error(t, name);
 		tnt_tuple_free(&tu);
@@ -116,9 +116,9 @@ nosqlb_cb_insert_do_sync(struct tnt *t, char *name, int bsize, int count, int fl
 		char key[32];
 		int key_len = snprintf(key, sizeof(key), "key_%d_%d", bsize, i);
 		struct tnt_tuple tu;
-		tnt_tuple_init(&tu, 2);
-		tnt_tuple_set(&tu, 0, key, key_len);
-		tnt_tuple_set(&tu, 1, buf, bsize);
+		tnt_tuple_init(&tu);
+		tnt_tuple_add(&tu, key, key_len);
+		tnt_tuple_add(&tu, buf, bsize);
 		if (tnt_insert(t, i, 0, flags, &tu) == -1)
 			nosqlb_cb_error(t, name);
 		tnt_flush(t);
@@ -270,8 +270,8 @@ nosqlb_cb_select(struct tnt *t,
 		struct tnt_tuples tuples;
 		tnt_tuples_init(&tuples);
 		struct tnt_tuple * tu = tnt_tuples_add(&tuples);
-		tnt_tuple_init(tu, 1);
-		tnt_tuple_set(tu, 0, key, key_len);
+		tnt_tuple_init(tu);
+		tnt_tuple_add(tu, key, key_len);
 		if (tnt_select(t, i, 0, 0, 0, 100, &tuples) == -1)
 			nosqlb_cb_error(t, "select");
 		tnt_tuples_free(&tuples);
@@ -295,8 +295,8 @@ nosqlb_cb_select_sync(struct tnt *t, int bsize,
 		struct tnt_tuples tuples;
 		tnt_tuples_init(&tuples);
 		struct tnt_tuple * tu = tnt_tuples_add(&tuples);
-		tnt_tuple_init(tu, 1);
-		tnt_tuple_set(tu, 0, key, key_len);
+		tnt_tuple_init(tu);
+		tnt_tuple_add(tu, key, key_len);
 		if (tnt_select(t, i, 0, 0, 0, 100, &tuples) == -1)
 			nosqlb_cb_error(t, "sync-select");
 		tnt_flush(t);
@@ -401,7 +401,7 @@ nosqlb_cb_redis_set_recv(struct tnt *t, int count)
 			nosqlb_cb_error(t, "recv");
 		else {
 			if (tnt_error(t) != TNT_EOK)
-				printf("server respond: %s\n", tnt_perror(t));
+				printf("server respond: %s\n", tnt_strerror(t));
 		}
 	}
 }
@@ -472,7 +472,7 @@ nosqlb_cb_redis_get_recv(struct tnt *t, int count)
 			nosqlb_cb_error(t, "recv");
 		else {
 			if (tnt_error(t) != TNT_EOK)
-				printf("server respond: %s\n", tnt_perror(t));
+				printf("server respond: %s\n", tnt_strerror(t));
 		}
 		tnt_mem_free(buf);
 	}

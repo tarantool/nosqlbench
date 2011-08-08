@@ -205,9 +205,9 @@ nosqlb_error(struct nosqlb *bench, char *name)
 		exit(1);
 	}
 
-	printf("%s() failed: %s ", name, tnt_perror(bench->t));
+	printf("%s() failed: %s ", name, tnt_strerror(bench->t));
 	if (tnt_error(bench->t) == TNT_ESYSTEM)
-		printf("(%s)", strerror(tnt_error_errno(bench->t)));
+		printf("(%s)", strerror(tnt_errno(bench->t)));
 
 	printf("\n");
 	exit(1);
