@@ -204,12 +204,7 @@ nosqlb_error(struct nosqlb *bench, char *name)
 		printf("%s failed\n", name);
 		exit(1);
 	}
-
-	printf("%s() failed: %s ", name, tnt_strerror(bench->t));
-	if (tnt_error(bench->t) == TNT_ESYSTEM)
-		printf("(%s)", strerror(tnt_errno(bench->t)));
-
-	printf("\n");
+	printf("%s() failed: %s\n", name, tnt_strerror(bench->t));
 	exit(1);
 }
 
@@ -229,7 +224,7 @@ main(int argc, char * argv[])
 		return 1;
 	}
 
-	printf("tarantool benchmark.\n\n");
+	printf("NoSQL benchmarking.\n\n");
 
 	struct nosqlb bench;
 	if (nosqlb_init(&bench, &funcs, &opts) == -1)
