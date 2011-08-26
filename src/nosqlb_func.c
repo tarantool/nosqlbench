@@ -30,7 +30,6 @@
 
 #include <tnt.h>
 
-#include <nosqlb_stat.h>
 #include <nosqlb_func.h>
 
 void
@@ -52,9 +51,9 @@ nosqlb_func_free(struct nosqlb_funcs *funcs)
 
 struct nosqlb_func*
 nosqlb_func_add(struct nosqlb_funcs *funcs,
-                char *name,
-		void (*func)(struct tnt *t, int bsize,
-			     int count, struct nosqlb_stat *stat))
+		char *name,
+		void (*func)(struct tnt *t, int tid, int bsize, int count,
+			     struct nosqlb_stat *stat))
 {
 	struct nosqlb_func *f =
 		malloc(sizeof(struct nosqlb_func));

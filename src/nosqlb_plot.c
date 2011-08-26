@@ -58,7 +58,7 @@ nosqlb_plot_data(struct nosqlb *bench, struct nosqlb_test *test)
 	STAILQ_FOREACH(b, &test->list, next) {
 		pos  = snprintf(data, sizeof(data), "%d\t", b->buf);
 		pos += snprintf(data + pos,
-			sizeof(data) - pos, "%f\t", b->avg.rps);
+			sizeof(data) - pos, "%f\t", b->stat.rps);
 		fputs(data, f);
 		fputc('\n', f);
 	}
@@ -74,11 +74,11 @@ nosqlb_plot_cfg(struct nosqlb *bench, struct nosqlb_test *test)
 		bench->opt->plot_dir, test->func->name);
 
 	char *head =
-		"set terminal png nocrop enhanced size 800,600 fon Tahoma 8\n"
+		"set terminal png nocrop enhanced size 800,600 fon Consolas 8\n"
 		"set output '%s'\n"
 		"set ytics border in scale 1,0.5 mirror norotate  offset character 0, 0, 0\n"
 		"set xtics (%s)\n"
-		"set title \"Tarantool '%s' benchmark (count: %d, reps: %d)\"\n"
+		"set title \"'%s' benchmark (reqs: %d, threads: %d)\"\n"
 		"set xlabel \"Buffers\"\n"
 		"set ylabel \"Requests\"\n";
 
@@ -92,7 +92,7 @@ nosqlb_plot_cfg(struct nosqlb *bench, struct nosqlb_test *test)
 	fprintf(f, head, file,
 		nosqlb_test_buf_list(test),
 		test->func->name,
-		bench->opt->count, bench->opt->reps);
+		bench->opt->count, bench->opt->threads);
 
 	char *head_xrange =
 		"set xrange [%d : %d] noreverse nowriteback\n\n";

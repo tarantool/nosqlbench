@@ -1,8 +1,9 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
-INCLUDE(CheckLibraryExists)
-INCLUDE(CheckIncludeFiles)
+cmake_minimum_required(VERSION 2.6)
 
-PROJECT(nosqlb)
+project(nosqlb)
+
+include(CheckLibraryExists)
+include(CheckIncludeFiles)
 
 ## build options
 ##
@@ -13,27 +14,27 @@ option(LIBTNT_LIB
 
 ## libtnt matching
 ##
-FIND_PATH(LIBTNT_HEADER_DIR tnt.h "${LIBTNT_INCLUDE}")
-IF (NOT LIBTNT_HEADER_DIR)
-	MESSAGE(FATAL_ERROR 
+find_path(LIBTNT_HEADER_DIR tnt.h "${LIBTNT_INCLUDE}")
+if (NOT LIBTNT_HEADER_DIR)
+	message(FATAL_ERROR 
 	"Tarantool DB client library header not found")
-ENDIF()
+endif()
 
-FIND_PATH(LIBTNT_LIB_DIR libtnt.a "${LIBTNT_LIB}")
-IF (NOT LIBTNT_LIB_DIR)
-	MESSAGE(FATAL_ERROR 
+find_path(LIBTNT_LIB_DIR libtnt.a "${LIBTNT_LIB}")
+if (NOT LIBTNT_LIB_DIR)
+	message(FATAL_ERROR 
 	"Tarantool DB client library (-ltnt) not found")
-ENDIF()
+endif()
 
 ## cflags
 ##
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O0 -std=gnu99 -pedantic -Wall -Wextra")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread -g -O0 -std=gnu99 -pedantic -Wall -Wextra")
 
-INCLUDE_DIRECTORIES("${PROJECT_SOURCE_DIR}/src")
-INCLUDE_DIRECTORIES("${LIBTNT_HEADER_DIR}")
+include_directories("${PROJECT_SOURCE_DIR}/src")
+include_directories("${LIBTNT_HEADER_DIR}")
 
-LINK_DIRECTORIES("${LIBTNT_LIB_DIR}")
+link_directories("${LIBTNT_LIB_DIR}")
 
-ADD_SUBDIRECTORY(src)
+add_subdirectory(src)
 
-INSTALL(FILES README LICENSE DESTINATION doc)
+install(FILES README LICENSE DESTINATION doc)

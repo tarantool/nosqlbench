@@ -1,5 +1,5 @@
-#ifndef NOSQLB_ARG_H_INCLUDED
-#define NOSQLB_ARG_H_INCLUDED
+#ifndef NOSQLB_THREAD_H_INCLUDED
+#define NOSQLB_THREAD_H_INCLUDED
 
 /*
  * Copyright (C) 2011 Mail.RU
@@ -26,46 +26,40 @@
  * SUCH DAMAGE.
  */
 
-enum {
-	NOSQLB_ARG_DONE,
-	NOSQLB_ARG_ERROR,
-	NOSQLB_ARG_UNKNOWN,
-	NOSQLB_ARG_SERVER_HOST,
-	NOSQLB_ARG_SERVER_PORT,
-	NOSQLB_ARG_THREADS,
-	NOSQLB_ARG_BUF_RECV,
-	NOSQLB_ARG_BUF_SEND,
-	NOSQLB_ARG_AUTH_TYPE,
-	NOSQLB_ARG_AUTH_ID,
-	NOSQLB_ARG_AUTH_KEY,
-	NOSQLB_ARG_AUTH_MECH,
-	NOSQLB_ARG_TEST_STD,
-	NOSQLB_ARG_TEST_STD_MC,
-	NOSQLB_ARG_TEST,
-	NOSQLB_ARG_TEST_BUF,
-	NOSQLB_ARG_TEST_LIST,
-	NOSQLB_ARG_COUNT,
-	NOSQLB_ARG_PLOT,
-	NOSQLB_ARG_PLOT_DIR,
-	NOSQLB_ARG_HELP
+typedef void *(*nosqlb_threadf_t)(void*);
+
+struct nosqlb;
+struct nosqlb_test;
+struct nosqlb_test_buf;
+
+struct nosqlb_thread {
+	int idx;
+	pthread_t thread;
+	struct tnt *t;
+	struct nosqlb *nosqlb;
+	struct nosqlb_test *test;
+	struct nosqlb_test_buf *buf;
+	struct nosqlb_stat stat;
 };
 
-struct nosqlb_arg_cmd {
-	char *name;
-	int arg;
-	int token;
+struct nosqlb_threads {
+	int count;
+	struct nosqlb_thread *threads;
 };
 
-struct nosqlb_arg {
-	int pos;
-	int argc;
-	char **argv;
-	struct nosqlb_arg_cmd *cmds;
-};
+void nosqlb_threads_init(struct nosqlb_threads *threads);
+void nosqlb_threads_free(struct nosqlb_threads *threads);
 
-void nosqlb_arg_init(struct nosqlb_arg *arg,
-		     struct nosqlb_arg_cmd *cmds, int argc, char * argv[]);
+int nosqlb_threads_create(struct nosqlb_threads *threads, int count,
+		          struct nosqlb *b,
+			  nosqlb_threadf_t cb,
+			  struct nosqlb_test *test, struct nosqlb_test_buf *buf);
 
-int nosqlb_arg(struct nosqlb_arg *arg, char **argp);
+int nosqlb_threads_join(struct nosqlb_threads *threads);
 
-#endif /* NOSQLB_ARG_H_INCLUDED */
+void nosqlb_threads_barrier_up(void);
+void nosqlb_threads_barrier_down(void);
+void nosqlb_threads_barrier(struct nosqlb_threads *threads);
+void nosqlb_threads_barrier_ready(void);
+
+#endif /* NOSQLB_WORKER_H_INCLUDED */

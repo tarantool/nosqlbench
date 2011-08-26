@@ -37,10 +37,10 @@ nosqlb_opt_init(struct nosqlb_opt *opt)
 {
 	opt->proto = TNT_PROTO_RW;
 	opt->host = "localhost";
-	opt->port = 33013; /* 15312 */
-	opt->color = 1;
+	opt->port = 33013;
+	opt->threads = 1;
 	opt->count = 1000;
-	opt->reps = 3;
+	opt->per = opt->count / opt->threads;
 	opt->rbuf = 16384;
 	opt->sbuf = 16384;
 	opt->plot = 0;
@@ -57,8 +57,12 @@ void
 nosqlb_opt_free(struct nosqlb_opt *opt)
 {
 	struct nosqlb_opt_arg *a, *anext;
-	STAILQ_FOREACH_SAFE(a, &opt->tests, next, anext)
+	STAILQ_FOREACH_SAFE(a, &opt->tests, next, anext) {
+		free(a->arg);
 		free(a);
-	STAILQ_FOREACH_SAFE(a, &opt->bufs, next, anext)
+	}
+	STAILQ_FOREACH_SAFE(a, &opt->bufs, next, anext) {
+		free(a->arg);
 		free(a);
+	}
 }

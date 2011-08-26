@@ -27,17 +27,14 @@
  */
 
 struct nosqlb {
-	struct tnt *t;
 	struct nosqlb_funcs *funcs;
 	struct nosqlb_tests tests;
 	struct nosqlb_opt *opt;
 };
 
-int  nosqlb_init(struct nosqlb *bench,
+void nosqlb_init(struct nosqlb *bench,
 		 struct nosqlb_funcs *funcs, struct nosqlb_opt *opt);
 void nosqlb_free(struct nosqlb *bench);
-
-int  nosqlb_connect(struct nosqlb *bench);
 void nosqlb_run(struct nosqlb *bench);
 
 #endif /* NOSQLB_H_INCLUDED */

@@ -63,7 +63,7 @@ nosqlb_cb_recv(struct tnt *t, int count)
 }
 
 static void
-nosqlb_cb_insert_do(struct tnt *t, char *name, int bsize, int count, int flags,
+nosqlb_cb_insert_do(struct tnt *t, int tid, char *name, int bsize, int count, int flags,
 	            struct nosqlb_stat *stat)
 {
 	char *buf = malloc(bsize);
@@ -78,7 +78,7 @@ nosqlb_cb_insert_do(struct tnt *t, char *name, int bsize, int count, int flags,
 	int i;
 	for (i = 0 ; i < count ; i++) {
 		char key[32];
-		int key_len = snprintf(key, sizeof(key), "key_%d_%d", bsize, i);
+		int key_len = snprintf(key, sizeof(key), "key_%d_%d_%d", tid, bsize, i);
 		struct tnt_tuple tu;
 		tnt_tuple_init(&tu);
 		tnt_tuple_add(&tu, key, key_len);
@@ -96,8 +96,8 @@ nosqlb_cb_insert_do(struct tnt *t, char *name, int bsize, int count, int flags,
 }
 
 static void
-nosqlb_cb_insert_do_sync(struct tnt *t, char *name, int bsize, int count, int flags,
-			 struct nosqlb_stat *stat)
+nosqlb_cb_insert_do_sync(struct tnt *t, int tid, char *name, int bsize, int count,
+		         int flags, struct nosqlb_stat *stat)
 {
 	char *buf = malloc(bsize);
 	if (buf == NULL) {
@@ -111,7 +111,7 @@ nosqlb_cb_insert_do_sync(struct tnt *t, char *name, int bsize, int count, int fl
 	int i;
 	for (i = 0 ; i < count ; i++) {
 		char key[32];
-		int key_len = snprintf(key, sizeof(key), "key_%d_%d", bsize, i);
+		int key_len = snprintf(key, sizeof(key), "key_%d_%d_%d", tid, bsize, i);
 		struct tnt_tuple tu;
 		tnt_tuple_init(&tu);
 		tnt_tuple_add(&tu, key, key_len);
@@ -129,38 +129,38 @@ nosqlb_cb_insert_do_sync(struct tnt *t, char *name, int bsize, int count, int fl
 }
 
 static void
-nosqlb_cb_insert(struct tnt *t, int bsize, int count,
+nosqlb_cb_insert(struct tnt *t, int tid, int bsize, int count,
 		 struct nosqlb_stat *stat)
 {
-	nosqlb_cb_insert_do(t, "insert", bsize, count, 0, stat);
+	nosqlb_cb_insert_do(t, tid, "insert", bsize, count, 0, stat);
 }
 
 static void
-nosqlb_cb_insert_ret(struct tnt *t, int bsize, int count,
+nosqlb_cb_insert_ret(struct tnt *t, int tid, int bsize, int count,
 		     struct nosqlb_stat *stat)
 {
-	nosqlb_cb_insert_do(t, "insert-ret",
+	nosqlb_cb_insert_do(t, tid, "insert-ret",
 		bsize, count, TNT_PROTO_FLAG_RETURN, stat);
 }
 
 static void
-nosqlb_cb_insert_sync(struct tnt *t, int bsize, int count,
+nosqlb_cb_insert_sync(struct tnt *t, int tid, int bsize, int count,
 		      struct nosqlb_stat *stat)
 {
-	nosqlb_cb_insert_do_sync(t, "sync-insert",
+	nosqlb_cb_insert_do_sync(t, tid, "sync-insert",
 		bsize, count, 0, stat);
 }
 
 static void
-nosqlb_cb_insert_ret_sync(struct tnt *t, int bsize, int count,
+nosqlb_cb_insert_ret_sync(struct tnt *t, int tid, int bsize, int count,
 			  struct nosqlb_stat *stat)
 {
-	nosqlb_cb_insert_do_sync(t, "sync-insert-ret",
+	nosqlb_cb_insert_do_sync(t, tid, "sync-insert-ret",
 		bsize, count, TNT_PROTO_FLAG_RETURN, stat);
 }
 
 static void
-nosqlb_cb_update_do(struct tnt *t, char *name, int bsize, int count,
+nosqlb_cb_update_do(struct tnt *t, int tid, char *name, int bsize, int count,
 		    int flags, struct nosqlb_stat *stat)
 {
 	char *buf = malloc(bsize);
@@ -175,7 +175,7 @@ nosqlb_cb_update_do(struct tnt *t, char *name, int bsize, int count,
 	int i;
 	for (i = 0 ; i < count ; i++) {
 		char key[32];
-		int key_len = snprintf(key, sizeof(key), "key_%d_%d", bsize, i);
+		int key_len = snprintf(key, sizeof(key), "key_%d_%d_%d", tid, bsize, i);
 		struct tnt_update u;
 		tnt_update_init(&u);
 		tnt_update_assign(&u, 1, buf, bsize);
@@ -191,7 +191,7 @@ nosqlb_cb_update_do(struct tnt *t, char *name, int bsize, int count,
 	free(buf);
 }
 static void
-nosqlb_cb_update_do_sync(struct tnt *t, char *name, int bsize, int count, int flags,
+nosqlb_cb_update_do_sync(struct tnt *t, int tid, char *name, int bsize, int count, int flags,
 			 struct nosqlb_stat *stat)
 {
 	char *buf = malloc(bsize);
@@ -206,7 +206,7 @@ nosqlb_cb_update_do_sync(struct tnt *t, char *name, int bsize, int count, int fl
 	int i;
 	for (i = 0 ; i < count ; i++) {
 		char key[32];
-		int key_len = snprintf(key, sizeof(key), "key_%d_%d", bsize, i);
+		int key_len = snprintf(key, sizeof(key), "key_%d_%d_%d", tid, bsize, i);
 		struct tnt_update u;
 		tnt_update_init(&u);
 		tnt_update_assign(&u, 1, buf, bsize);
@@ -223,47 +223,46 @@ nosqlb_cb_update_do_sync(struct tnt *t, char *name, int bsize, int count, int fl
 }
 
 static void
-nosqlb_cb_update(struct tnt *t, int bsize, int count,
+nosqlb_cb_update(struct tnt *t, int tid, int bsize, int count,
 		 struct nosqlb_stat *stat)
 {
-	nosqlb_cb_update_do(t, "update",
-		bsize, count, 0, stat);
+	nosqlb_cb_update_do(t, tid, "update", bsize, count, 0, stat);
 }
 
 static void
-nosqlb_cb_update_ret(struct tnt *t,
-		     int bsize, int count, struct nosqlb_stat *stat)
+nosqlb_cb_update_ret(struct tnt *t, int tid, int bsize, int count,
+		     struct nosqlb_stat *stat)
 {
-	nosqlb_cb_update_do(t, "update-ret",
+	nosqlb_cb_update_do(t, tid, "update-ret",
 		bsize, count, TNT_PROTO_FLAG_RETURN, stat);
 }
 
 static void
-nosqlb_cb_update_sync(struct tnt *t, int bsize, int count,
+nosqlb_cb_update_sync(struct tnt *t, int tid, int bsize, int count,
 		      struct nosqlb_stat *stat)
 {
-	nosqlb_cb_update_do_sync(t, "sync-update",
+	nosqlb_cb_update_do_sync(t, tid, "sync-update",
 		bsize, count, 0, stat);
 }
 
 static void
-nosqlb_cb_update_ret_sync(struct tnt *t, int bsize, int count,
+nosqlb_cb_update_ret_sync(struct tnt *t, int tid, int bsize, int count,
 			  struct nosqlb_stat *stat)
 {
-	nosqlb_cb_update_do_sync(t, "sync-update-ret",
+	nosqlb_cb_update_do_sync(t, tid, "sync-update-ret",
 		bsize, count, TNT_PROTO_FLAG_RETURN, stat);
 }
 
 static void
-nosqlb_cb_select(struct tnt *t,
-		 int bsize, int count, struct nosqlb_stat *stat)
+nosqlb_cb_select(struct tnt *t, int tid, int bsize, int count,
+		 struct nosqlb_stat *stat)
 {
 	nosqlb_stat_start(stat, count);
 
 	int i;
 	for (i = 0 ; i < count ; i++) {
 		char key[32];
-		int key_len = snprintf(key, sizeof(key), "key_%d_%d", bsize, i);
+		int key_len = snprintf(key, sizeof(key), "key_%d_%d_%d", tid, bsize, i);
 		struct tnt_tuples tuples;
 		tnt_tuples_init(&tuples);
 		struct tnt_tuple * tu = tnt_tuples_add(&tuples);
@@ -280,15 +279,15 @@ nosqlb_cb_select(struct tnt *t,
 }
 
 static void
-nosqlb_cb_select_sync(struct tnt *t, int bsize,
-		      int count, struct nosqlb_stat *stat)
+nosqlb_cb_select_sync(struct tnt *t, int tid, int bsize, int count,
+		      struct nosqlb_stat *stat)
 {
 	nosqlb_stat_start(stat, count);
 
 	int i;
 	for (i = 0 ; i < count ; i++) {
 		char key[32];
-		int key_len = snprintf(key, sizeof(key), "key_%d_%d", bsize, i);
+		int key_len = snprintf(key, sizeof(key), "key_%d_%d_%d", tid, bsize, i);
 		struct tnt_tuples tuples;
 		tnt_tuples_init(&tuples);
 		struct tnt_tuple * tu = tnt_tuples_add(&tuples);
@@ -306,8 +305,9 @@ nosqlb_cb_select_sync(struct tnt *t, int bsize,
 }
 
 static void
-nosqlb_cb_ping(struct tnt *t, int bsize __attribute__((unused)),
-	       int count, struct nosqlb_stat *stat)
+nosqlb_cb_ping(struct tnt *t, int tid __attribute__((unused)),
+	       int bsize __attribute__((unused)), int count,
+	       struct nosqlb_stat *stat)
 {
 	nosqlb_stat_start(stat, count);
 
@@ -323,8 +323,9 @@ nosqlb_cb_ping(struct tnt *t, int bsize __attribute__((unused)),
 }
 
 static void
-nosqlb_cb_ping_sync(struct tnt *t, int bsize __attribute__((unused)),
-		    int count, struct nosqlb_stat *stat)
+nosqlb_cb_ping_sync(struct tnt *t, int tid __attribute__((unused)),
+		    int bsize __attribute__((unused)), int count,
+		    struct nosqlb_stat *stat)
 {
 	nosqlb_stat_start(stat, count);
 
@@ -340,7 +341,7 @@ nosqlb_cb_ping_sync(struct tnt *t, int bsize __attribute__((unused)),
 }
 
 static void
-nosqlb_cb_memcache_set(struct tnt *t, int bsize, int count,
+nosqlb_cb_memcache_set(struct tnt *t, int tid, int bsize, int count,
 		       struct nosqlb_stat *stat)
 {
 	char *buf = malloc(bsize);
@@ -355,7 +356,7 @@ nosqlb_cb_memcache_set(struct tnt *t, int bsize, int count,
 	int i;
 	for (i = 0 ; i < count ; i++) {
 		char key[32];
-		snprintf(key, sizeof(key), "key_%d_%d", bsize, i);
+		snprintf(key, sizeof(key), "key_%d_%d_%d", tid, bsize, i);
 		if (tnt_memcache_set(t, 0, 0, key, buf, bsize) == -1)
 			nosqlb_cb_error(t, "set");
 	}
@@ -365,7 +366,7 @@ nosqlb_cb_memcache_set(struct tnt *t, int bsize, int count,
 }
 
 static void
-nosqlb_cb_memcache_get(struct tnt *t, int bsize, int count,
+nosqlb_cb_memcache_get(struct tnt *t, int tid, int bsize, int count,
 		       struct nosqlb_stat *stat)
 {
 	nosqlb_stat_start(stat, count);
@@ -375,7 +376,7 @@ nosqlb_cb_memcache_get(struct tnt *t, int bsize, int count,
 	char *keyptr[1] = { keydesc };
 
 	for (key = 0 ; key < count ; key++) {
-		snprintf(keydesc, sizeof(keydesc), "key_%d_%d", bsize, key);
+		snprintf(keydesc, sizeof(keydesc), "key_%d_%d_%d", tid, bsize, key);
 
 		struct tnt_memcache_vals vals;
 		tnt_memcache_val_init(&vals);
@@ -404,7 +405,7 @@ nosqlb_cb_redis_set_recv(struct tnt *t, int count)
 }
 
 static void
-nosqlb_cb_redis_set(struct tnt *t, int bsize, int count,
+nosqlb_cb_redis_set(struct tnt *t, int tid, int bsize, int count,
 		    struct nosqlb_stat *stat)
 {
 	char *buf = malloc(bsize);
@@ -419,7 +420,7 @@ nosqlb_cb_redis_set(struct tnt *t, int bsize, int count,
 	int i;
 	for (i = 0 ; i < count ; i++) {
 		char key[32];
-		snprintf(key, sizeof(key), "key_%d_%d", bsize, i);
+		snprintf(key, sizeof(key), "key_%d_%d_%d", tid, bsize, i);
 		if (nosqlb_redis_set(t, key, buf, bsize) == -1)
 			nosqlb_cb_error(t, "set");
 	}
@@ -432,7 +433,7 @@ nosqlb_cb_redis_set(struct tnt *t, int bsize, int count,
 }
 
 static void
-nosqlb_cb_redis_set_sync(struct tnt *t, int bsize, int count,
+nosqlb_cb_redis_set_sync(struct tnt *t, int tid, int bsize, int count,
 			 struct nosqlb_stat *stat)
 {
 	char *buf = malloc(bsize);
@@ -447,7 +448,7 @@ nosqlb_cb_redis_set_sync(struct tnt *t, int bsize, int count,
 	int i;
 	for (i = 0 ; i < count ; i++) {
 		char key[32];
-		snprintf(key, sizeof(key), "key_%d_%d", bsize, i);
+		snprintf(key, sizeof(key), "key_%d_%d_%d", tid, bsize, i);
 		if (nosqlb_redis_set(t, key, buf, bsize) == -1)
 			nosqlb_cb_error(t, "set");
 		tnt_flush(t);
@@ -476,7 +477,7 @@ nosqlb_cb_redis_get_recv(struct tnt *t, int count)
 }
 
 static void
-nosqlb_cb_redis_get(struct tnt *t, int bsize, int count,
+nosqlb_cb_redis_get(struct tnt *t, int tid, int bsize, int count,
 		    struct nosqlb_stat *stat)
 {
 	nosqlb_stat_start(stat, count);
@@ -484,7 +485,7 @@ nosqlb_cb_redis_get(struct tnt *t, int bsize, int count,
 	int i;
 	for (i = 0 ; i < count ; i++) {
 		char key[32];
-		snprintf(key, sizeof(key), "key_%d_%d", bsize, i);
+		snprintf(key, sizeof(key), "key_%d_%d_%d", tid, bsize, i);
 		if (nosqlb_redis_get(t, key) == -1)
 			nosqlb_cb_error(t, "get");
 	}
@@ -495,7 +496,7 @@ nosqlb_cb_redis_get(struct tnt *t, int bsize, int count,
 }
 
 static void
-nosqlb_cb_redis_get_sync(struct tnt *t, int bsize, int count,
+nosqlb_cb_redis_get_sync(struct tnt *t, int tid, int bsize, int count,
 			 struct nosqlb_stat *stat)
 {
 	nosqlb_stat_start(stat, count);
@@ -503,7 +504,7 @@ nosqlb_cb_redis_get_sync(struct tnt *t, int bsize, int count,
 	int i;
 	for (i = 0 ; i < count ; i++) {
 		char key[32];
-		snprintf(key, sizeof(key), "key_%d_%d", bsize, i);
+		snprintf(key, sizeof(key), "key_%d_%d_%d", tid, bsize, i);
 		if (nosqlb_redis_get(t, key) == -1)
 			nosqlb_cb_error(t, "get");
 		tnt_flush(t);

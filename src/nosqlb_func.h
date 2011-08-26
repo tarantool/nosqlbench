@@ -26,10 +26,12 @@
  * SUCH DAMAGE.
  */
 
+struct nosqlb_stat;
+
 struct nosqlb_func {
 	char *name;
-	void (*func)(struct tnt *t, int bsize,
-		     int count, struct nosqlb_stat *stat);
+	void (*func)(struct tnt *t, int tid, int bsize, int count,
+	             struct nosqlb_stat *stat);
 	STAILQ_ENTRY(nosqlb_func) next;
 };
 
@@ -44,8 +46,8 @@ void nosqlb_func_free(struct nosqlb_funcs *funcs);
 struct nosqlb_func*
 nosqlb_func_add(struct nosqlb_funcs *funcs,
 		char *name,
-		 void (*func)(struct tnt *t, int bsize,
-			      int count, struct nosqlb_stat *stat));
+		void (*func)(struct tnt *t, int tid, int bsize, int count,
+			     struct nosqlb_stat *stat));
 
 struct nosqlb_func*
 nosqlb_func_match(struct nosqlb_funcs *funcs, char *name);

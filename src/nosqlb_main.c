@@ -48,21 +48,20 @@ nosqlb_usage(struct nosqlb_opt *opts, char *name)
 	printf("  -a, --server-host [host]      server address (%s)\n", opts->host);
 	printf("  -p, --server-port [port]      server port (%d)\n", opts->port);
 	printf("  -r, --buf-recv [rbuf]         receive buffer size (%d)\n", opts->rbuf);
-	printf("  -s, --buf-send [sbuf]         send buffer size (%d)\n\n", opts->sbuf);
+	printf("  -s, --buf-send [sbuf]         send buffer size (%d)\n", opts->sbuf);
+	printf("  -t, --threads [count]         connection threads (%d)\n\n", opts->threads);
 
 	printf("benchmark:\n");
 	printf("  -M, --test-std-mc             standart memcache testing set (%d)\n", opts->std_memcache);
 	printf("  -A, --test-std-tnt            standart tarantool testing set (%d)\n", opts->std);
-	printf("  -T, --test [name]             test name\n");
-	printf("  -B, --test-buf [buf]          test buffer size\n");
+	printf("  -T, --test [name,...]         list of tests\n");
+	printf("  -B, --test-buf [buf,...]      test buffer sizes\n");
 	printf("  -L, --test-list               list available tests\n");
 	printf("  -C, --count [count]           request count (%d)\n", opts->count);
-	printf("  -R, --rep [count]             count of request repeats (%d)\n", opts->reps);
 	printf("  -P, --plot                    generate gnuplot files (%d)\n", opts->plot);
 	printf("  -D, --plot-dir [path]         plot output directory (%s)\n\n", opts->plot_dir);
 
 	printf("other:\n");
-	printf("  -b, --color [color]           color output (%d)\n", opts->color);
 	printf("  -h, --help                    show usage\n\n");
 
 	printf("examples:\n");
@@ -71,14 +70,14 @@ nosqlb_usage(struct nosqlb_opt *opts, char *name)
 
 	printf("  # benchmark insert, select for 48, 96, 102 buffers\n");
 	printf("  # for 10000 counts * 10 repeats\n");
-	printf("  nosqlb --test tnt-insert --test tnt-select -B 48 -B 96 -B 102 -C 10000 -R 10\n\n");
+	printf("  nosqlb --test tnt-insert,tnt-select -B 48,96,102 -C 10000\n\n");
 
 	printf("  # benchmark async and sync insert tests\n");
-	printf("  nosqlb -T tnt-insert -T tnt-insert-sync -B 32 -B 64 -B 128 -C 100000 -P\n\n");
+	printf("  nosqlb -T tnt-insert -T tnt-insert-sync -B 32,64,128 -C 100000 -P\n\n");
 
 	printf("  # benchmark memcache protocol for 32, 64, 128 bytes payload\n");
 	printf("  # with plot generation\n");
-	printf("  nosqlb -T memcache-set -B 32 -B 64 -B 128 -C 10000 -R 5 -P\n");
+	printf("  nosqlb -T memcache-set -B 32,64,128 -C 10000 -P\n");
 
 	exit(1);
 }
@@ -92,6 +91,8 @@ struct nosqlb_arg_cmd cmds[] =
 	{ "--server-host",  1, NOSQLB_ARG_SERVER_HOST  },
 	{ "-p",             1, NOSQLB_ARG_SERVER_PORT  },
 	{ "--server-port",  1, NOSQLB_ARG_SERVER_PORT  },
+	{ "-t",             1, NOSQLB_ARG_THREADS      },
+	{ "--threads",      1, NOSQLB_ARG_THREADS      },
 	{ "-r",             1, NOSQLB_ARG_BUF_RECV     },
 	{ "--buf-recv",     1, NOSQLB_ARG_BUF_RECV     },
 	{ "-s",             1, NOSQLB_ARG_BUF_SEND     },
@@ -108,10 +109,6 @@ struct nosqlb_arg_cmd cmds[] =
 	{ "--test-list",    0, NOSQLB_ARG_TEST_LIST    },
 	{ "-C",             1, NOSQLB_ARG_COUNT        },
 	{ "--count",        1, NOSQLB_ARG_COUNT        },
-	{ "-R",             1, NOSQLB_ARG_REP          },
-	{ "--rep",          1, NOSQLB_ARG_REP          },
-	{ "-b",             1, NOSQLB_ARG_COLOR        },
-	{ "--color",        1, NOSQLB_ARG_COLOR        },
 	{ "-P",             0, NOSQLB_ARG_PLOT         },
 	{ "--plot",         0, NOSQLB_ARG_PLOT         },
 	{ "-D",             1, NOSQLB_ARG_PLOT_DIR     },
@@ -120,15 +117,36 @@ struct nosqlb_arg_cmd cmds[] =
 };
 
 static void
+nosqlb_args_add(struct nosqlb_opt *opts, char *argp, int test)
+{
+	char buflist[1024];
+	strncpy(buflist, argp, sizeof(buflist));
+	char *p;
+	for (p = strtok(buflist, ",") ; p ; p = strtok(NULL, ",")) {
+		struct nosqlb_opt_arg *arg =
+			malloc(sizeof(struct nosqlb_opt_arg));
+		if (arg == NULL)
+			return;
+		arg->arg = strdup(p);
+		if (test) {
+			opts->tests_count++;
+			STAILQ_INSERT_TAIL(&opts->tests, arg, next);
+		} else {
+			opts->bufs_count++;
+			STAILQ_INSERT_TAIL(&opts->bufs, arg, next);
+		}
+	}
+}
+
+static void
 nosqlb_args(struct nosqlb_funcs * funcs,
 	struct nosqlb_opt *opts, int argc, char * argv[])
 {
-	struct nosqlb_opt_arg *arg;
 	struct nosqlb_arg args;
 	nosqlb_arg_init(&args, cmds, argc, argv);
 
 	while (1) {
-		char * argp;
+		char *argp;
 		switch (nosqlb_arg(&args, &argp)) {
 		case NOSQLB_ARG_DONE:
 			return;
@@ -143,6 +161,9 @@ nosqlb_args(struct nosqlb_funcs * funcs,
 		case NOSQLB_ARG_SERVER_PORT:
 			opts->port = atoi(argp);
 			break;
+		case NOSQLB_ARG_THREADS:
+			opts->threads = atoi(argp);
+			break;
 		case NOSQLB_ARG_BUF_RECV:
 			opts->rbuf = atoi(argp);
 			break;
@@ -156,20 +177,10 @@ nosqlb_args(struct nosqlb_funcs * funcs,
 			opts->std = 1;
 			break;
 		case NOSQLB_ARG_TEST:
-			arg = malloc(sizeof(struct nosqlb_opt_arg));
-			if (arg == NULL)
-				return;
-			arg->arg = argp;
-			opts->tests_count++;
-			STAILQ_INSERT_TAIL(&opts->tests, arg, next);
+			nosqlb_args_add(opts, argp, 1);
 			break;
 		case NOSQLB_ARG_TEST_BUF:
-			arg = malloc(sizeof(struct nosqlb_opt_arg));
-			if (arg == NULL)
-				return;
-			arg->arg = argp;
-			opts->bufs_count++;
-			STAILQ_INSERT_TAIL(&opts->bufs, arg, next);
+			nosqlb_args_add(opts, argp, 0);
 			break;
 		case NOSQLB_ARG_TEST_LIST:
 			printf("available tests:\n");
@@ -181,12 +192,6 @@ nosqlb_args(struct nosqlb_funcs * funcs,
 		case NOSQLB_ARG_COUNT:
 			opts->count = atoi(argp);
 			break;
-		case NOSQLB_ARG_REP:
-			opts->reps = atoi(argp);
-			break;
-		case NOSQLB_ARG_COLOR:
-			opts->color = atoi(argp);
-			break;
 		case NOSQLB_ARG_PLOT:
 			opts->plot = 1;
 			break;
@@ -195,17 +200,6 @@ nosqlb_args(struct nosqlb_funcs * funcs,
 			break;
 		}
 	}
-}
-
-static void
-nosqlb_error(struct nosqlb *bench, char *name)
-{
-	if (bench->t == NULL) {
-		printf("%s failed\n", name);
-		exit(1);
-	}
-	printf("%s() failed: %s\n", name, tnt_strerror(bench->t));
-	exit(1);
 }
 
 int
@@ -223,19 +217,16 @@ main(int argc, char * argv[])
 		nosqlb_usage(&opts, argv[0]);
 		return 1;
 	}
+	opts.per = opts.count / opts.threads;
 
 	printf("NoSQL benchmarking.\n\n");
 
 	struct nosqlb bench;
-	if (nosqlb_init(&bench, &funcs, &opts) == -1)
-		nosqlb_error(&bench, "nosqlb_init");
-
-	if (nosqlb_connect(&bench) == -1)
-		nosqlb_error(&bench, "nosqlb_connect");
+	nosqlb_init(&bench, &funcs, &opts);
 
 	nosqlb_run(&bench);
-
 	nosqlb_free(&bench);
+
 	nosqlb_func_free(&funcs);
 	nosqlb_opt_free(&opts);
 	return 0;

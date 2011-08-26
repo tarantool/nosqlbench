@@ -1,8 +1,8 @@
 
-SET(nosqlb_bin  nosqlb)
+set(nosqlb_bin  nosqlb)
 
-SET(nosqlb_libs tnt)
-SET(nosqlb_src
+set(nosqlb_libs tnt)
+set(nosqlb_src
 	nosqlb_arg.c
 	nosqlb_stat.c
 	nosqlb_func.c
@@ -11,10 +11,11 @@ SET(nosqlb_src
 	nosqlb_plot.c
 	nosqlb_cb.c
 	nosqlb_redis.c
+	nosqlb_thread.c
 	nosqlb.c
 	nosqlb_main.c)
 
-ADD_EXECUTABLE(${nosqlb_bin} ${nosqlb_src})
-TARGET_LINK_LIBRARIES(${nosqlb_bin} ${nosqlb_libs})
+add_executable(${nosqlb_bin} ${nosqlb_src})
+target_link_libraries(${nosqlb_bin} ${nosqlb_libs})
 
-INSTALL_TARGETS(/bin ${nosqlb_bin})
+install_targets(/bin ${nosqlb_bin})

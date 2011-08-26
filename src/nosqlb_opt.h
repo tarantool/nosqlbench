@@ -35,12 +35,12 @@ struct nosqlb_opt_arg {
 struct nosqlb_opt {
 	char *host;
 	int port;
+	int threads;
 	enum tnt_proto proto;
 	int rbuf;
 	int sbuf;
 	int count;
-	int reps;
-	int color;
+	int per;
 	int plot;
 	char *plot_dir;
 	int std;

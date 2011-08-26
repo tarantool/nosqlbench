@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <pthread.h>
 
 #include <tnt.h>
 
@@ -36,37 +37,22 @@
 #include <nosqlb_opt.h>
 #include <nosqlb.h>
 #include <nosqlb_cb.h>
+#include <nosqlb_thread.h>
 #include <nosqlb_plot.h>
 
-int
+void
 nosqlb_init(struct nosqlb *bench, struct nosqlb_funcs *funcs,
 	    struct nosqlb_opt *opt)
 {
 	bench->funcs = funcs;
 	bench->opt = opt;
-
 	nosqlb_test_init(&bench->tests);
-
-	bench->t = tnt_alloc();
-	if (bench->t == NULL)
-		return -1;
-
-	tnt_set(bench->t, TNT_OPT_PROTO, opt->proto);
-	tnt_set(bench->t, TNT_OPT_HOSTNAME, opt->host);
-	tnt_set(bench->t, TNT_OPT_PORT, opt->port);
-	tnt_set(bench->t, TNT_OPT_SEND_BUF, opt->sbuf);
-	tnt_set(bench->t, TNT_OPT_RECV_BUF, opt->rbuf);
-
-	if (tnt_init(bench->t) == -1)
-		return -1;
-	return 0;
 }
 
 void
 nosqlb_free(struct nosqlb *bench)
 {
 	nosqlb_test_free(&bench->tests);
-	tnt_free(bench->t);
 }
 
 static void
@@ -123,14 +109,8 @@ nosqlb_set_std_memcache(struct nosqlb *bench)
 	nosqlb_test_buf_add(t, 128);
 }
 
-int
-nosqlb_connect(struct nosqlb *bench)
-{
-	return tnt_connect(bench->t);
-}
-
-void
-nosqlb_run(struct nosqlb *bench)
+static int
+nosqlb_prepare(struct nosqlb *bench)
 {
 	/* using specified tests, if supplied */
 	if (bench->opt->tests_count) {
@@ -140,7 +120,7 @@ nosqlb_run(struct nosqlb *bench)
 				nosqlb_func_match(bench->funcs, arg->arg);
 			if (func == NULL) {
 				printf("unknown test: \"%s\", try --test-list\n", arg->arg);
-				return;
+				return -1;
 			}
 			nosqlb_test_add(&bench->tests, func);
 		}
@@ -157,57 +137,84 @@ nosqlb_run(struct nosqlb *bench)
 		if (bench->opt->std_memcache) 
 			nosqlb_set_std_memcache(bench);
 	}
+	return 0;
+}
 
-	struct nosqlb_stat *stats =
-		malloc(sizeof(struct nosqlb_stat) * bench->opt->reps);
-	if (stats == NULL)
+static void*
+nosqlb_cb(struct nosqlb_thread *t)
+{
+	t->t = tnt_alloc();
+	if (t->t == NULL) {
+		printf("tnt_alloc() failed\n");
+		return NULL;
+	}
+
+	tnt_set(t->t, TNT_OPT_PROTO, t->nosqlb->opt->proto);
+	tnt_set(t->t, TNT_OPT_HOSTNAME, t->nosqlb->opt->host);
+	tnt_set(t->t, TNT_OPT_PORT, t->nosqlb->opt->port);
+	tnt_set(t->t, TNT_OPT_SEND_BUF, t->nosqlb->opt->sbuf);
+	tnt_set(t->t, TNT_OPT_RECV_BUF, t->nosqlb->opt->rbuf);
+	tnt_set(t->t, TNT_OPT_TMOUT_CONNECT, 8);
+	if (tnt_init(t->t) == -1)
+		return NULL;
+
+	if (tnt_connect(t->t) == -1) {
+		printf("tnt_connect() failed: %s\n", tnt_strerror(t->t));
+		return NULL;
+	}
+
+	/* waiting at the start point */
+	nosqlb_threads_barrier_ready();
+
+	/* calling test */
+	t->test->func->func(t->t, t->idx, t->buf->buf, t->nosqlb->opt->per,
+			    &t->stat);
+	tnt_free(t->t);
+	return NULL;
+}
+
+void
+nosqlb_run(struct nosqlb *bench)
+{
+	if (nosqlb_prepare(bench) == -1)
 		return;
 
 	struct nosqlb_test *t;
 	STAILQ_FOREACH(t, &bench->tests.list, next) {
-		if (bench->opt->color)
-			printf("\033[22;33m%s\033[0m\n", t->func->name);
-		else
-			printf("%s\n", t->func->name);
+		printf("%s\n", t->func->name);
 		fflush(stdout);
 
 		struct nosqlb_test_buf *b;
 		STAILQ_FOREACH(b, &t->list, next) {
-			printf("  >>> [%d] ", b->buf);
-			memset(stats, 0, sizeof(struct nosqlb_stat) *
-				bench->opt->reps);
+			printf(" [%4d] ", b->buf);
 			fflush(stdout);
 
-			int r;
-			for (r = 0 ; r < bench->opt->reps ; r++) {
-				t->func->func(bench->t, b->buf, bench->opt->count, &stats[r]);
-				printf("<%.2f %.2f> ", stats[r].rps, (float)stats[r].tm / 1000);
-				fflush(stdout);
-			}
+			struct nosqlb_threads threads;
+			nosqlb_threads_init(&threads);
 
-			float rps = 0.0;
-			unsigned long long tm = 0;
-			for (r = 0 ; r < bench->opt->reps ; r++) {
-				rps += stats[r].rps;
-				tm += stats[r].tm;
-			}
+			/* creating threads and waiting for ready */
+			nosqlb_threads_barrier_up();
+			nosqlb_threads_create(&threads, bench->opt->threads,
+				 bench, (nosqlb_threadf_t)nosqlb_cb, t, b);
+			nosqlb_threads_barrier(&threads);
 
-			b->avg.rps   = rps / bench->opt->reps;
-			b->avg.tm    = (float)tm / 1000 / bench->opt->reps;
-			b->avg.start = 0;
-			b->avg.count = 0;
+			/* starting timer */
+			nosqlb_stat_start(&b->stat, bench->opt->count);
 
-			printf("\n");
-			if (bench->opt->color) 
-				printf("  <<< (avg time \033[22;35m%.2f\033[0m sec): \033[22;32m%.2f\033[0m rps\n", 
-					b->avg.tm, b->avg.rps);
-			else
-				printf("  <<< (avg time %.2f sec): %.2f rps\n", 
-					b->avg.tm, b->avg.rps);
+			/* starting test */
+			nosqlb_threads_barrier_down();
+			nosqlb_threads_join(&threads);
+
+			/* calculating statistics for current buf */
+			nosqlb_stat_stop(&b->stat);
+			nosqlb_threads_free(&threads);
+
+			printf("%.2f rps, %.2f sec\n",
+				b->stat.rps, ((float)b->stat.tm / 1000));
+			fflush(stdout);
 		}
 	}
 
-	free(stats);
 	if (bench->opt->plot)
 		nosqlb_plot(bench);
 }
