@@ -40,6 +40,8 @@ struct nosqlb_opt {
 	int rbuf;
 	int sbuf;
 	int count;
+	int rep;
+	int full;
 	int per;
 	int plot;
 	char *plot_dir;
@@ -49,6 +51,7 @@ struct nosqlb_opt {
 	int tests_count;
 	STAILQ_HEAD(,nosqlb_opt_arg) bufs;
 	int bufs_count;
+	char *buf_file;
 };
 
 void nosqlb_opt_init(struct nosqlb_opt *opt);

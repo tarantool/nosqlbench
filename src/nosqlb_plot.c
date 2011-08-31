@@ -52,7 +52,7 @@ nosqlb_plot_data(struct nosqlb *bench, struct nosqlb_test *test)
 	if (f == NULL)
 		return -1;
 
-	char data[2048];
+	char data[8096];
 	int pos = 0;
 	struct nosqlb_test_buf *b;
 	STAILQ_FOREACH(b, &test->list, next) {
@@ -74,7 +74,7 @@ nosqlb_plot_cfg(struct nosqlb *bench, struct nosqlb_test *test)
 		bench->opt->plot_dir, test->func->name);
 
 	char *head =
-		"set terminal png nocrop enhanced size 800,600 fon Consolas 8\n"
+		"set terminal png nocrop enhanced size 800,600 fon Arial 7\n"
 		"set output '%s'\n"
 		"set ytics border in scale 1,0.5 mirror norotate  offset character 0, 0, 0\n"
 		"set xtics (%s)\n"

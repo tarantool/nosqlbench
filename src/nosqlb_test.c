@@ -86,7 +86,7 @@ nosqlb_test_buf_list(struct nosqlb_test *test)
 {
 	int pos = 0;
 	int first = 1;
-	static char list[256];
+	static char list[4096];
 	struct nosqlb_test_buf *b;
 	STAILQ_FOREACH(b, &test->list, next) {
 		if (first) {

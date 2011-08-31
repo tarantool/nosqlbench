@@ -179,6 +179,13 @@ nosqlb_run(struct nosqlb *bench)
 	if (nosqlb_prepare(bench) == -1)
 		return;
 
+	struct nosqlb_stat *stats =
+		malloc(sizeof(struct nosqlb_stat) * bench->opt->rep);
+	if (stats == NULL) {
+		printf("memory allocation failed\n");
+		return;
+	}
+
 	struct nosqlb_test *t;
 	STAILQ_FOREACH(t, &bench->tests.list, next) {
 		printf("%s\n", t->func->name);
@@ -186,35 +193,49 @@ nosqlb_run(struct nosqlb *bench)
 
 		struct nosqlb_test_buf *b;
 		STAILQ_FOREACH(b, &t->list, next) {
-			printf(" [%4d] ", b->buf);
-			fflush(stdout);
+			memset(stats, 0, sizeof(struct nosqlb_stat) * bench->opt->rep);
+			int rep;
+			for (rep = 0 ; rep < bench->opt->rep ; rep++) {
+				printf(" [%4d] ", b->buf);
+				fflush(stdout);
 
-			struct nosqlb_threads threads;
-			nosqlb_threads_init(&threads);
+				struct nosqlb_threads threads;
+				nosqlb_threads_init(&threads);
 
-			/* creating threads and waiting for ready */
-			nosqlb_threads_barrier_up();
-			nosqlb_threads_create(&threads, bench->opt->threads,
-				 bench, (nosqlb_threadf_t)nosqlb_cb, t, b);
-			nosqlb_threads_barrier(&threads);
+				/* creating threads and waiting for ready */
+				nosqlb_threads_barrier_up();
+				nosqlb_threads_create(&threads, bench->opt->threads,
+					 bench, (nosqlb_threadf_t)nosqlb_cb, t, b);
+				nosqlb_threads_barrier(&threads);
 
-			/* starting timer */
-			nosqlb_stat_start(&b->stat, bench->opt->count);
+				/* starting timer */
+				nosqlb_stat_start(&stats[rep], bench->opt->count);
 
-			/* starting test */
-			nosqlb_threads_barrier_down();
-			nosqlb_threads_join(&threads);
+				/* starting test */
+				nosqlb_threads_barrier_down();
+				nosqlb_threads_join(&threads);
 
-			/* calculating statistics for current buf */
-			nosqlb_stat_stop(&b->stat);
-			nosqlb_threads_free(&threads);
+				/* calculating statistics for current buf */
+				nosqlb_stat_stop(&stats[rep]);
+				nosqlb_threads_free(&threads);
 
-			printf("%.2f rps, %.2f sec\n",
+				printf("%.2f rps, %.2f sec\n",
+					stats[rep].rps, ((float)stats[rep].tm / 1000));
+				fflush(stdout);
+
+				b->stat.tm  += stats[rep].tm;
+				b->stat.rps += stats[rep].rps;
+			}
+
+			b->stat.rps /= bench->opt->rep;
+			b->stat.tm  /= bench->opt->rep;
+			printf("        %.2f rps, %.2f sec\n",
 				b->stat.rps, ((float)b->stat.tm / 1000));
 			fflush(stdout);
 		}
 	}
 
+	free(stats);
 	if (bench->opt->plot)
 		nosqlb_plot(bench);
 }
