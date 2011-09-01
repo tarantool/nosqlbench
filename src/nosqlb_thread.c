@@ -38,18 +38,10 @@
 #include <nosqlb.h>
 #include <nosqlb_thread.h>
 
-static volatile int barrier_ready;
-static pthread_mutex_t barrier_up_mutex;
-static pthread_mutex_t barrier_mutex;
-static pthread_cond_t barrier_cond;
 
 void
 nosqlb_threads_init(struct nosqlb_threads *threads)
 {
-	pthread_mutex_init(&barrier_up_mutex, NULL);
-	pthread_mutex_init(&barrier_mutex, NULL);
-	pthread_cond_init(&barrier_cond, NULL);
-	barrier_ready = 0;
 	threads->count = 0;
 	threads->threads = NULL;
 }
@@ -63,45 +55,10 @@ nosqlb_threads_free(struct nosqlb_threads *threads)
 	}
 }
 
-void
-nosqlb_threads_barrier_up(void)
-{
-	barrier_ready = 0;
-	pthread_mutex_lock(&barrier_up_mutex);
-}
-
-void
-nosqlb_threads_barrier_down(void)
-{
-	pthread_mutex_unlock(&barrier_up_mutex);
-}
-
-void
-nosqlb_threads_barrier(struct nosqlb_threads *threads)
-{
-	pthread_mutex_lock(&barrier_mutex);
-	while (threads->count < barrier_ready)
-		pthread_cond_wait(&barrier_cond, &barrier_mutex);
-	pthread_mutex_unlock(&barrier_mutex);
-}
-
-void
-nosqlb_threads_barrier_ready(void)
-{
-	pthread_mutex_lock(&barrier_mutex);
-	barrier_ready++;
-	pthread_cond_signal(&barrier_cond);
-	pthread_mutex_unlock(&barrier_mutex);
-	/* awaiting barrier to go down */
-	pthread_mutex_lock(&barrier_up_mutex);
-	pthread_mutex_unlock(&barrier_up_mutex);
-}
-
 int
 nosqlb_threads_create(struct nosqlb_threads *threads, int count,
 	              struct nosqlb *b,
-		      nosqlb_threadf_t cb,
-		      struct nosqlb_test *test, struct nosqlb_test_buf *buf)
+		      nosqlb_threadf_t cb)
 {
 	threads->count = count;
 	threads->threads = malloc(sizeof(struct nosqlb_thread) * count);
@@ -114,8 +71,8 @@ nosqlb_threads_create(struct nosqlb_threads *threads, int count,
 		struct nosqlb_thread *t = &threads->threads[i];
 		t->idx = i;
 		t->nosqlb = b;
-		t->test = test;
-		t->buf = buf;
+		t->test = NULL;
+		t->buf = NULL;
 		if (pthread_create(&t->thread, NULL, cb, (void*)t) == -1)
 			return -1;
 	}
@@ -132,4 +89,16 @@ nosqlb_threads_join(struct nosqlb_threads *threads)
 		pthread_join(threads->threads[i].thread, &ret);
 	}
 	return 0;
+}
+
+void
+nosqlb_threads_set(struct nosqlb_threads *threads,
+		   struct nosqlb_test *test, struct nosqlb_test_buf *buf)
+{
+	int i;
+	for (i = 0 ; i < threads->count ; i++) {
+		struct nosqlb_thread *t = &threads->threads[i];
+		t->test = test;
+		t->buf = buf;
+	}
 }

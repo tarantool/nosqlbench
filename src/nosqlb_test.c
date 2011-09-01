@@ -77,6 +77,7 @@ nosqlb_test_buf_add(struct nosqlb_test *test, int buf)
 		return;
 	b->buf = buf;
 	memset(&b->stat, 0, sizeof(b->stat));
+	memset(&b->stat_tow, 0, sizeof(b->stat_tow));
 	test->count++;
 	STAILQ_INSERT_TAIL(&test->list, b, next);
 }

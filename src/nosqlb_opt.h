@@ -42,6 +42,7 @@ struct nosqlb_opt {
 	int count;
 	int rep;
 	int full;
+	int tow;
 	int per;
 	int plot;
 	char *plot_dir;

@@ -35,7 +35,6 @@ struct nosqlb_test_buf;
 struct nosqlb_thread {
 	int idx;
 	pthread_t thread;
-	struct tnt *t;
 	struct nosqlb *nosqlb;
 	struct nosqlb_test *test;
 	struct nosqlb_test_buf *buf;
@@ -52,14 +51,11 @@ void nosqlb_threads_free(struct nosqlb_threads *threads);
 
 int nosqlb_threads_create(struct nosqlb_threads *threads, int count,
 		          struct nosqlb *b,
-			  nosqlb_threadf_t cb,
-			  struct nosqlb_test *test, struct nosqlb_test_buf *buf);
+			  nosqlb_threadf_t cb);
 
 int nosqlb_threads_join(struct nosqlb_threads *threads);
 
-void nosqlb_threads_barrier_up(void);
-void nosqlb_threads_barrier_down(void);
-void nosqlb_threads_barrier(struct nosqlb_threads *threads);
-void nosqlb_threads_barrier_ready(void);
+void nosqlb_threads_set(struct nosqlb_threads *threads,
+		        struct nosqlb_test *test, struct nosqlb_test_buf *buf);
 
 #endif /* NOSQLB_WORKER_H_INCLUDED */

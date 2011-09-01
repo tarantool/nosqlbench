@@ -29,6 +29,7 @@
 struct nosqlb_test_buf {
 	int buf;
 	struct nosqlb_stat stat;
+	struct nosqlb_stat stat_tow;
 	STAILQ_ENTRY(nosqlb_test_buf) next;
 };
 

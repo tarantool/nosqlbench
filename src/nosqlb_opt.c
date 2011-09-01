@@ -42,6 +42,7 @@ nosqlb_opt_init(struct nosqlb_opt *opt)
 	opt->count = 1000;
 	opt->rep = 1;
 	opt->full = 0;
+	opt->tow = 0;
 	opt->per = opt->count / opt->threads;
 	opt->rbuf = 16384;
 	opt->sbuf = 16384;

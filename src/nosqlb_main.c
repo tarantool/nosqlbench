@@ -61,6 +61,7 @@ nosqlb_usage(struct nosqlb_opt *opts, char *name)
 	printf("  -C, --count [count]           request count (%d)\n", opts->count);
 	printf("  -R, --repeat [count]          request repeat (%d)\n", opts->rep);
 	printf("  -U, --full                    do full request range per thread (%d)\n", opts->full);
+	printf("  -W, --tow                     display total time for each test (%d)\n", opts->tow);
 	printf("  -P, --plot                    generate gnuplot files (%d)\n", opts->plot);
 	printf("  -D, --plot-dir [path]         plot output directory (%s)\n\n", opts->plot_dir);
 
@@ -118,6 +119,8 @@ struct nosqlb_arg_cmd cmds[] =
 	{ "--repeat",        1, NOSQLB_ARG_REP           },
 	{ "-U",              0, NOSQLB_ARG_FULL          },
 	{ "--full",          0, NOSQLB_ARG_FULL          },
+	{ "-W",              0, NOSQLB_ARG_TOW           },
+	{ "--tow",           0, NOSQLB_ARG_TOW           },
 	{ "-P",              0, NOSQLB_ARG_PLOT          },
 	{ "--plot",          0, NOSQLB_ARG_PLOT          },
 	{ "-D",              1, NOSQLB_ARG_PLOT_DIR      },
@@ -243,6 +246,9 @@ nosqlb_args(struct nosqlb_funcs * funcs,
 			break;
 		case NOSQLB_ARG_FULL:
 			opts->full = 1;
+			break;
+		case NOSQLB_ARG_TOW:
+			opts->tow = 1;
 			break;
 		case NOSQLB_ARG_PLOT:
 			opts->plot = 1;

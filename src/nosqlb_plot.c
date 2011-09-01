@@ -59,6 +59,8 @@ nosqlb_plot_data(struct nosqlb *bench, struct nosqlb_test *test)
 		pos  = snprintf(data, sizeof(data), "%d\t", b->buf);
 		pos += snprintf(data + pos,
 			sizeof(data) - pos, "%f\t", b->stat.rps);
+		pos += snprintf(data + pos,
+			sizeof(data) - pos, "%f\t", b->stat_tow.rps);
 		fputs(data, f);
 		fputc('\n', f);
 	}
@@ -74,11 +76,11 @@ nosqlb_plot_cfg(struct nosqlb *bench, struct nosqlb_test *test)
 		bench->opt->plot_dir, test->func->name);
 
 	char *head =
-		"set terminal png nocrop enhanced size 800,600 fon Arial 7\n"
+		"set terminal png nocrop enhanced size 1024,600 fon Arial 7\n"
 		"set output '%s'\n"
 		"set ytics border in scale 1,0.5 mirror norotate  offset character 0, 0, 0\n"
 		"set xtics (%s)\n"
-		"set title \"'%s' benchmark (reqs: %d, threads: %d)\"\n"
+		"set title \"'%s' benchmark (reqs: %d, reps: %d, threads: %d)\"\n"
 		"set xlabel \"Buffers\"\n"
 		"set ylabel \"Requests\"\n";
 
@@ -92,7 +94,9 @@ nosqlb_plot_cfg(struct nosqlb *bench, struct nosqlb_test *test)
 	fprintf(f, head, file,
 		nosqlb_test_buf_list(test),
 		test->func->name,
-		bench->opt->count, bench->opt->threads);
+		bench->opt->count,
+		bench->opt->rep,
+		bench->opt->threads);
 
 	char *head_xrange =
 		"set xrange [%d : %d] noreverse nowriteback\n\n";
@@ -107,11 +111,15 @@ nosqlb_plot_cfg(struct nosqlb *bench, struct nosqlb_test *test)
 	fprintf(f, head_xrange, bmin, bmax);
 	snprintf(file, sizeof(file), "bench-%s.data", test->func->name);
 
-	char plotfmt[512];
+	char plotfmt[1024];
 	snprintf(plotfmt, sizeof(plotfmt),
-		"plot '%s' using 1:2 with lines t \"%s\", "
-		"'%s' using 1:2:2 with labels notitle\n",
-			file, test->func->name, file);
+		"plot '%s' using 1:2 with lines t \"%s\", \\\n"
+		"'%s' using 1:2:2 with labels notitle, \\\n"
+		"'%s' using 1:3 with lines t \"%s (full)\", \\\n"
+		"'%s' using 1:3:3 with labels notitle\n",
+		file, test->func->name, file,
+		file, test->func->name, file);
+
 	fputs(plotfmt, f);
 	fputs("\n# vim: syntax=gnuplot", f);
 	fclose(f);
