@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 #include <pthread.h>
 
 #include <tnt.h>
@@ -218,8 +219,10 @@ nosqlb_run(struct nosqlb *bench)
 	/* creating threads and waiting for ready */
 	if (nosqlb_threads_create(&threads, bench->opt->threads,
 		bench, (nosqlb_threadf_t)nosqlb_cb) == -1) {
+		free(stats);
+		free(stats_tow);
 		printf("failed to create threads\n");
-		goto done;
+		return;
 	}
 
 	int rc;
@@ -245,17 +248,11 @@ nosqlb_run(struct nosqlb *bench)
 
 				/* waiting threads to connect, start test */
 				rc = pthread_barrier_wait(&barrier);
-				if (rc != PTHREAD_BARRIER_SERIAL_THREAD && rc != 0) {
-					printf("barrier wait error\n");
-					goto done;
-				}
+				assert(rc == 0 || rc == PTHREAD_BARRIER_SERIAL_THREAD);
 
 				/* waiting threads to finish test */
 				rc = pthread_barrier_wait(&barrier);
-				if (rc != PTHREAD_BARRIER_SERIAL_THREAD && rc != 0) {
-					printf("barrier wait error\n");
-					goto done;
-				}
+				assert(rc == 0 || rc == PTHREAD_BARRIER_SERIAL_THREAD);
 
 				/* calculating TOW */
 				nosqlb_stat_stop(&stats_tow[rep]);
@@ -302,11 +299,12 @@ nosqlb_run(struct nosqlb *bench)
 	/* finalizing threads */
 	run = 0;
 	rc = pthread_barrier_wait(&barrier);
-	if (rc != PTHREAD_BARRIER_SERIAL_THREAD && rc != 0)
-		printf("barrier wait error\n");
-done:
+	assert(rc == 0 || rc == PTHREAD_BARRIER_SERIAL_THREAD);
 	pthread_barrier_destroy(&barrier);
+
+	nosqlb_threads_join(&threads);
 	nosqlb_threads_free(&threads);
+
 	free(stats);
 	free(stats_tow);
 	if (bench->opt->plot)

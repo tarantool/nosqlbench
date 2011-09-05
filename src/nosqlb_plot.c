@@ -115,7 +115,7 @@ nosqlb_plot_cfg(struct nosqlb *bench, struct nosqlb_test *test)
 	snprintf(plotfmt, sizeof(plotfmt),
 		"plot '%s' using 1:2 with lines t \"%s\", \\\n"
 		"'%s' using 1:2:2 with labels notitle, \\\n"
-		"'%s' using 1:3 with lines t \"%s (full)\", \\\n"
+		"'%s' using 1:3 with lines t \"%s (total)\", \\\n"
 		"'%s' using 1:3:3 with labels notitle\n",
 		file, test->func->name, file,
 		file, test->func->name, file);
