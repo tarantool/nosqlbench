@@ -206,13 +206,23 @@ nosqlb_run(struct nosqlb *bench)
 	struct nosqlb_threads threads;
 	nosqlb_threads_init(&threads);
 
-	pthread_barrier_init(&barrier, NULL, bench->opt->threads + 1 /* main */);
+	if (pthread_barrier_init(&barrier,
+		NULL, bench->opt->threads + 1 /* main */) != 0) {
+		free(stats);
+		free(stats_tow);
+		printf("failed to init barrier\n");
+		return;
+	}
 	run = 1;
 
 	/* creating threads and waiting for ready */
-	nosqlb_threads_create(&threads, bench->opt->threads,
-		 bench, (nosqlb_threadf_t)nosqlb_cb);
+	if (nosqlb_threads_create(&threads, bench->opt->threads,
+		bench, (nosqlb_threadf_t)nosqlb_cb) == -1) {
+		printf("failed to create threads\n");
+		goto done;
+	}
 
+	int rc;
 	struct nosqlb_test *t;
 	STAILQ_FOREACH(t, &bench->tests.list, next) {
 		printf("%s\n", t->func->name);
@@ -234,9 +244,18 @@ nosqlb_run(struct nosqlb *bench)
 				nosqlb_stat_start(&stats_tow[rep], bench->opt->count);
 
 				/* waiting threads to connect, start test */
-				pthread_barrier_wait(&barrier);
+				rc = pthread_barrier_wait(&barrier);
+				if (rc != PTHREAD_BARRIER_SERIAL_THREAD && rc != 0) {
+					printf("barrier wait error\n");
+					goto done;
+				}
+
 				/* waiting threads to finish test */
-				pthread_barrier_wait(&barrier);
+				rc = pthread_barrier_wait(&barrier);
+				if (rc != PTHREAD_BARRIER_SERIAL_THREAD && rc != 0) {
+					printf("barrier wait error\n");
+					goto done;
+				}
 
 				/* calculating TOW */
 				nosqlb_stat_stop(&stats_tow[rep]);
@@ -282,11 +301,14 @@ nosqlb_run(struct nosqlb *bench)
 
 	/* finalizing threads */
 	run = 0;
-	pthread_barrier_wait(&barrier);
-
+	rc = pthread_barrier_wait(&barrier);
+	if (rc != PTHREAD_BARRIER_SERIAL_THREAD && rc != 0)
+		printf("barrier wait error\n");
+done:
+	pthread_barrier_destroy(&barrier);
 	nosqlb_threads_free(&threads);
-
 	free(stats);
+	free(stats_tow);
 	if (bench->opt->plot)
 		nosqlb_plot(bench);
 }
