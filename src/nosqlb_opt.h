@@ -26,10 +26,14 @@
  * SUCH DAMAGE.
  */
 
+struct nosqlb_opt_test {
+	char *test;
+	STAILQ_ENTRY(nosqlb_opt_test) next;
+};
 
-struct nosqlb_opt_arg {
-	char *arg;
-	STAILQ_ENTRY(nosqlb_opt_arg) next;
+struct nosqlb_opt_buf {
+	int buf;
+	STAILQ_ENTRY(nosqlb_opt_buf) next;
 };
 
 struct nosqlb_opt {
@@ -48,9 +52,9 @@ struct nosqlb_opt {
 	char *plot_dir;
 	int std;
 	int std_memcache;
-	STAILQ_HEAD(,nosqlb_opt_arg) tests;
+	STAILQ_HEAD(,nosqlb_opt_test) tests;
 	int tests_count;
-	STAILQ_HEAD(,nosqlb_opt_arg) bufs;
+	STAILQ_HEAD(,nosqlb_opt_buf) bufs;
 	int bufs_count;
 	char *buf_file;
 };

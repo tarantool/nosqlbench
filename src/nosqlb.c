@@ -115,20 +115,21 @@ nosqlb_prepare(struct nosqlb *bench)
 {
 	/* using specified tests, if supplied */
 	if (bench->opt->tests_count) {
-		struct nosqlb_opt_arg *arg;
-		STAILQ_FOREACH(arg, &bench->opt->tests, next) {
+		struct nosqlb_opt_test *t;
+		STAILQ_FOREACH(t, &bench->opt->tests, next) {
 			struct nosqlb_func *func = 
-				nosqlb_func_match(bench->funcs, arg->arg);
+				nosqlb_func_match(bench->funcs, t->test);
 			if (func == NULL) {
-				printf("unknown test: \"%s\", try --test-list\n", arg->arg);
+				printf("unknown test: \"%s\", try --test-list\n", t->test);
 				return -1;
 			}
 			nosqlb_test_add(&bench->tests, func);
 		}
+		struct nosqlb_opt_buf *buf;
 		struct nosqlb_test *test;
-		STAILQ_FOREACH(arg, &bench->opt->bufs, next) {
+		STAILQ_FOREACH(buf, &bench->opt->bufs, next) {
 			STAILQ_FOREACH(test, &bench->tests.list, next) {
-				nosqlb_test_buf_add(test, atoi(arg->arg));
+				nosqlb_test_buf_add(test, buf->buf);
 			}
 		}
 	} else {

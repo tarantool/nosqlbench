@@ -38,6 +38,11 @@
 #include <nosqlb_cb.h>
 #include <nosqlb.h>
 
+static char*
+nosqlb_usage_onoff(int val) {
+	return (val) ? "on" : "off";
+}
+
 static void
 nosqlb_usage(struct nosqlb_opt *opts, char *name)
 {
@@ -52,17 +57,18 @@ nosqlb_usage(struct nosqlb_opt *opts, char *name)
 	printf("  -t, --threads [count]         connection threads (%d)\n\n", opts->threads);
 
 	printf("benchmark:\n");
-	printf("  -M, --test-std-mc             standart memcache testing set (%d)\n", opts->std_memcache);
-	printf("  -A, --test-std-tnt            standart tarantool testing set (%d)\n", opts->std);
+	printf("  -M, --test-std-mc             standart memcache testing set (%s)\n", nosqlb_usage_onoff(opts->std_memcache));
+	printf("  -A, --test-std-tnt            standart tarantool testing set (%s)\n", nosqlb_usage_onoff(opts->std));
 	printf("  -T, --test [name,...]         list of tests\n");
 	printf("  -B, --test-buf [buf,...]      test buffer sizes\n");
 	printf("  -F, --test-buf-file [path]    read tests buffer sizes from file\n");
+	printf("  -Z, --test-buf-zone [fmt]     set tests buffer zone, eg. 5-100:5\n");
 	printf("  -L, --test-list               list available tests\n");
 	printf("  -C, --count [count]           request count (%d)\n", opts->count);
 	printf("  -R, --repeat [count]          request repeat (%d)\n", opts->rep);
-	printf("  -U, --full                    do full request range per thread (%d)\n", opts->full);
-	printf("  -W, --tow                     display total time for each test (%d)\n", opts->tow);
-	printf("  -P, --plot                    generate gnuplot files (%d)\n", opts->plot);
+	printf("  -U, --full                    do full request range per thread (%s)\n", nosqlb_usage_onoff(opts->full));
+	printf("  -W, --tow                     display total time for each test (%s)\n", nosqlb_usage_onoff(opts->tow));
+	printf("  -P, --plot                    generate gnuplot files (%s)\n", nosqlb_usage_onoff(opts->plot));
 	printf("  -D, --plot-dir [path]         plot output directory (%s)\n\n", opts->plot_dir);
 
 	printf("other:\n");
@@ -111,6 +117,8 @@ struct nosqlb_arg_cmd cmds[] =
 	{ "--test-buf",      1, NOSQLB_ARG_TEST_BUF      },
 	{ "-F",              1, NOSQLB_ARG_TEST_BUF_FILE },
 	{ "--test-buf-file", 1, NOSQLB_ARG_TEST_BUF_FILE },
+	{ "-Z",              1, NOSQLB_ARG_TEST_BUF_ZONE },
+	{ "--test-buf-zone", 1, NOSQLB_ARG_TEST_BUF_ZONE },
 	{ "-L",              0, NOSQLB_ARG_TEST_LIST     },
 	{ "--test-list",     0, NOSQLB_ARG_TEST_LIST     },
 	{ "-C",              1, NOSQLB_ARG_COUNT         },
@@ -129,24 +137,19 @@ struct nosqlb_arg_cmd cmds[] =
 };
 
 static void
-nosqlb_add_args(struct nosqlb_opt *opts, char *argp, int test)
+nosqlb_add_tests(struct nosqlb_opt *opts, char *argp)
 {
-	char buflist[1024];
-	strncpy(buflist, argp, sizeof(buflist));
+	char list[1024];
+	strncpy(list, argp, sizeof(list));
 	char *p;
-	for (p = strtok(buflist, ",") ; p ; p = strtok(NULL, ",")) {
-		struct nosqlb_opt_arg *arg =
-			malloc(sizeof(struct nosqlb_opt_arg));
-		if (arg == NULL)
+	for (p = strtok(list, ",") ; p ; p = strtok(NULL, ",")) {
+		struct nosqlb_opt_test *test =
+			malloc(sizeof(struct nosqlb_opt_test));
+		if (test == NULL)
 			return;
-		arg->arg = strdup(p);
-		if (test) {
-			STAILQ_INSERT_TAIL(&opts->tests, arg, next);
-			opts->tests_count++;
-		} else {
-			STAILQ_INSERT_TAIL(&opts->bufs, arg, next);
-			opts->bufs_count++;
-		}
+		test->test = strdup(p);
+		STAILQ_INSERT_TAIL(&opts->tests, test, next);
+		opts->tests_count++;
 	}
 }
 
@@ -165,23 +168,82 @@ nosqlb_add_bufs_chop(char *buf, int size)
 static void
 nosqlb_add_bufs(struct nosqlb_opt *opts, char *argp)
 {
+	char buflist[1024];
+	strncpy(buflist, argp, sizeof(buflist));
+	char *p;
+	for (p = strtok(buflist, ",") ; p ; p = strtok(NULL, ",")) {
+		struct nosqlb_opt_buf *buf =
+			malloc(sizeof(struct nosqlb_opt_buf));
+		if (buf == NULL)
+			return;
+		buf->buf = atoi(p);
+		STAILQ_INSERT_TAIL(&opts->bufs, buf, next);
+		opts->bufs_count++;
+	}
+}
+
+static void
+nosqlb_add_bufs_file(struct nosqlb_opt *opts, char *argp)
+{
 	FILE *f = fopen(argp, "r");
 	if (f == NULL) {
 		printf("failed to open file %s\n", argp);
 		return;
 	}
-	char buf[64];
-	while (fgets(buf, sizeof(buf), f)) {
-		struct nosqlb_opt_arg *arg =
-			malloc(sizeof(struct nosqlb_opt_arg));
-		if (arg == NULL)
+	char sz[64];
+	while (fgets(sz, sizeof(sz), f)) {
+		struct nosqlb_opt_buf *buf =
+			malloc(sizeof(struct nosqlb_opt_buf));
+		if (buf == NULL)
 			return;
-		nosqlb_add_bufs_chop(buf, sizeof(buf));
-		arg->arg = strdup(buf);
-		STAILQ_INSERT_TAIL(&opts->bufs, arg, next);
+		nosqlb_add_bufs_chop(sz, sizeof(sz));
+		buf->buf = atoi(sz);
+		STAILQ_INSERT_TAIL(&opts->bufs, buf, next);
 		opts->bufs_count++;
 	}
 	fclose(f);
+}
+
+static void
+nosqlb_add_bufs_zone(struct nosqlb_opt *opts, char *argp)
+{
+	/* start-end-increment */
+	char *p;
+	char sz[256];
+	snprintf(sz, sizeof(sz), "%s", argp);
+
+	int begin = 0,
+	    end = 0,
+	    inc = 0;
+	int state = 0;
+	for (p = strtok(sz, "-") ; p ; p = strtok(NULL, ":")) {
+		switch (state) {
+		case 0: begin = atoi(p);
+			break;
+		case 1: end = atoi(p);
+			break;
+		case 2: inc = atoi(p);
+			break;
+		default:
+			goto error;
+		}
+		state++;
+	}
+	if (state != 3)
+		goto error;
+	int b = 0;
+	for (b = begin ; b <= end ; b += inc) {
+		struct nosqlb_opt_buf *buf =
+			malloc(sizeof(struct nosqlb_opt_buf));
+		if (buf == NULL)
+			return;
+		buf->buf = b;
+		STAILQ_INSERT_TAIL(&opts->bufs, buf, next);
+		opts->bufs_count++;
+	}
+	return;
+error:
+	printf("bad zone format\n");
 }
 
 static void
@@ -223,13 +285,16 @@ nosqlb_args(struct nosqlb_funcs * funcs,
 			opts->std = 1;
 			break;
 		case NOSQLB_ARG_TEST:
-			nosqlb_add_args(opts, argp, 1);
+			nosqlb_add_tests(opts, argp);
 			break;
 		case NOSQLB_ARG_TEST_BUF:
-			nosqlb_add_args(opts, argp, 0);
+			nosqlb_add_bufs(opts, argp);
 			break;
 		case NOSQLB_ARG_TEST_BUF_FILE:
-			nosqlb_add_bufs(opts, argp);
+			nosqlb_add_bufs_file(opts, argp);
+			break;
+		case NOSQLB_ARG_TEST_BUF_ZONE:
+			nosqlb_add_bufs_zone(opts, argp);
 			break;
 		case NOSQLB_ARG_TEST_LIST:
 			printf("available tests:\n");

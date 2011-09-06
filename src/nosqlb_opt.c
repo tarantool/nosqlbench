@@ -59,13 +59,12 @@ nosqlb_opt_init(struct nosqlb_opt *opt)
 void
 nosqlb_opt_free(struct nosqlb_opt *opt)
 {
-	struct nosqlb_opt_arg *a, *anext;
-	STAILQ_FOREACH_SAFE(a, &opt->tests, next, anext) {
-		free(a->arg);
-		free(a);
+	struct nosqlb_opt_test *t, *tnext;
+	STAILQ_FOREACH_SAFE(t, &opt->tests, next, tnext) {
+		free(t->test);
+		free(t);
 	}
-	STAILQ_FOREACH_SAFE(a, &opt->bufs, next, anext) {
-		free(a->arg);
-		free(a);
-	}
+	struct nosqlb_opt_buf *b, *bnext;
+	STAILQ_FOREACH_SAFE(b, &opt->bufs, next, bnext)
+		free(b);
 }
