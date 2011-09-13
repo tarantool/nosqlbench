@@ -1,5 +1,5 @@
-#ifndef NOSQLB_PLOT_H_INCLUDED
-#define NOSQLB_PLOT_H_INCLUDED
+#ifndef NB_ARG_H_INCLUDED
+#define NB_ARG_H_INCLUDED
 
 /*
  * Copyright (C) 2011 Mail.RU
@@ -26,6 +26,54 @@
  * SUCH DAMAGE.
  */
 
-int nosqlb_plot(struct nosqlb *bench);
+enum {
+	NB_ARG_DONE,
+	NB_ARG_ERROR,
+	NB_ARG_UNKNOWN,
+	NB_ARG_SERVER_HOST,
+	NB_ARG_SERVER_PORT,
+	NB_ARG_THREADS,
+	NB_ARG_BUF_RECV,
+	NB_ARG_BUF_SEND,
+	NB_ARG_AUTH_TYPE,
+	NB_ARG_AUTH_ID,
+	NB_ARG_AUTH_KEY,
+	NB_ARG_AUTH_MECH,
+	NB_ARG_TEST_STD,
+	NB_ARG_TEST_STD_MC,
+	NB_ARG_TEST,
+	NB_ARG_TEST_BUF,
+	NB_ARG_TEST_BUF_FILE,
+	NB_ARG_TEST_BUF_ZONE,
+	NB_ARG_TEST_LIST,
+	NB_ARG_COUNT,
+	NB_ARG_REP,
+	NB_ARG_FULL,
+	NB_ARG_ESYNC,
+	NB_ARG_PLOT,
+	NB_ARG_PLOT_LOAD,
+	NB_ARG_SAVE,
+	NB_ARG_INFO,
+	NB_ARG_INFO_INT,
+	NB_ARG_HELP
+};
 
-#endif /* NOSQLB_PLOT_H_INCLUDED */
+struct nb_arg_cmd {
+	char *name;
+	int argc;
+	int token;
+};
+
+struct nb_arg {
+	int pos;
+	int argc;
+	char **argv;
+	struct nb_arg_cmd *cmds;
+};
+
+void nb_arg_init(struct nb_arg *arg,
+		 struct nb_arg_cmd *cmds, int argc, char * argv[]);
+
+int nb_arg(struct nb_arg *arg, int *argc, char ***argv);
+
+#endif /* NB_ARG_H_INCLUDED */

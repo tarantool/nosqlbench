@@ -1,5 +1,5 @@
-#ifndef NOSQLB_ARG_H_INCLUDED
-#define NOSQLB_ARG_H_INCLUDED
+#ifndef NB_STAT_H_INCLUDED
+#define NB_STAT_H_INCLUDED
 
 /*
  * Copyright (C) 2011 Mail.RU
@@ -26,51 +26,14 @@
  * SUCH DAMAGE.
  */
 
-enum {
-	NOSQLB_ARG_DONE,
-	NOSQLB_ARG_ERROR,
-	NOSQLB_ARG_UNKNOWN,
-	NOSQLB_ARG_SERVER_HOST,
-	NOSQLB_ARG_SERVER_PORT,
-	NOSQLB_ARG_THREADS,
-	NOSQLB_ARG_BUF_RECV,
-	NOSQLB_ARG_BUF_SEND,
-	NOSQLB_ARG_AUTH_TYPE,
-	NOSQLB_ARG_AUTH_ID,
-	NOSQLB_ARG_AUTH_KEY,
-	NOSQLB_ARG_AUTH_MECH,
-	NOSQLB_ARG_TEST_STD,
-	NOSQLB_ARG_TEST_STD_MC,
-	NOSQLB_ARG_TEST,
-	NOSQLB_ARG_TEST_BUF,
-	NOSQLB_ARG_TEST_BUF_FILE,
-	NOSQLB_ARG_TEST_BUF_ZONE,
-	NOSQLB_ARG_TEST_LIST,
-	NOSQLB_ARG_COUNT,
-	NOSQLB_ARG_REP,
-	NOSQLB_ARG_FULL,
-	NOSQLB_ARG_TOW,
-	NOSQLB_ARG_PLOT,
-	NOSQLB_ARG_PLOT_DIR,
-	NOSQLB_ARG_HELP
+struct nb_stat {
+	long long start;
+	int count;
+	float tm;
+	float rps;
 };
 
-struct nosqlb_arg_cmd {
-	char *name;
-	int arg;
-	int token;
-};
+void nb_stat_start(struct nb_stat *stat, int count);
+void nb_stat_stop(struct nb_stat *stat);
 
-struct nosqlb_arg {
-	int pos;
-	int argc;
-	char **argv;
-	struct nosqlb_arg_cmd *cmds;
-};
-
-void nosqlb_arg_init(struct nosqlb_arg *arg,
-		     struct nosqlb_arg_cmd *cmds, int argc, char * argv[]);
-
-int nosqlb_arg(struct nosqlb_arg *arg, char **argp);
-
-#endif /* NOSQLB_ARG_H_INCLUDED */
+#endif /* NB_STAT_H_INCLUDED */

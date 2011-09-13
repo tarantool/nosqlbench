@@ -27,78 +27,56 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <pthread.h>
 
 #include <tnt.h>
 
-#include <nosqlb_stat.h>
-#include <nosqlb_func.h>
-#include <nosqlb_test.h>
-#include <nosqlb_opt.h>
-#include <nosqlb.h>
-#include <nosqlb_thread.h>
-
+#include <nb_func.h>
 
 void
-nosqlb_threads_init(struct nosqlb_threads *threads)
+nb_func_init(struct nb_funcs *funcs)
 {
-	threads->count = 0;
-	threads->threads = NULL;
+	funcs->count = 0;
+	STAILQ_INIT(&funcs->list);
 }
 
 void
-nosqlb_threads_free(struct nosqlb_threads *threads)
+nb_func_free(struct nb_funcs *funcs)
 {
-	if (threads->threads) {
-		free(threads->threads);
-		threads->threads = NULL;
+	struct nb_func *f, *fnext;
+	STAILQ_FOREACH_SAFE(f, &funcs->list, next, fnext) {
+		free(f->name);
+		free(f);
 	}
 }
 
-int
-nosqlb_threads_create(struct nosqlb_threads *threads, int count,
-	              struct nosqlb *b,
-		      nosqlb_threadf_t cb)
+struct nb_func*
+nb_func_add(struct nb_funcs *funcs,
+	    char *name,
+	    void (*func)(struct tnt *t, int tid, int bsize, int count,
+		         struct nb_stat *stat))
 {
-	threads->count = count;
-	threads->threads = malloc(sizeof(struct nosqlb_thread) * count);
-	if (threads->threads == NULL)
-		return -1;
-	memset(threads->threads, 0, sizeof(threads->threads));
-
-	int i;
-	for (i = 0 ; i < count ; i++) {
-		struct nosqlb_thread *t = &threads->threads[i];
-		t->idx = i;
-		t->nosqlb = b;
-		t->test = NULL;
-		t->buf = NULL;
-		if (pthread_create(&t->thread, NULL, cb, (void*)t) == -1)
-			return -1;
+	struct nb_func *f =
+		malloc(sizeof(struct nb_func));
+	if (f == NULL)
+		return NULL;
+	f->name = strdup(name);
+	if (f->name == NULL) {
+		free(f);
+		return NULL;
 	}
-
-	return 0;
+	f->func = func;
+	funcs->count++;
+	STAILQ_INSERT_TAIL(&funcs->list, f, next);
+	return f;
 }
 
-int
-nosqlb_threads_join(struct nosqlb_threads *threads)
+struct nb_func*
+nb_func_match(struct nb_funcs *funcs, char *name)
 {
-	int i;
-	for (i = 0 ; i < threads->count ; i++) {
-		void *ret = NULL;
-		pthread_join(threads->threads[i].thread, &ret);
+	struct nb_func *f;
+	STAILQ_FOREACH(f, &funcs->list, next) {
+		if (!strcmp(f->name, name))
+			return f;
 	}
-	return 0;
-}
-
-void
-nosqlb_threads_set(struct nosqlb_threads *threads,
-		   struct nosqlb_test *test, struct nosqlb_test_buf *buf)
-{
-	int i;
-	for (i = 0 ; i < threads->count ; i++) {
-		struct nosqlb_thread *t = &threads->threads[i];
-		t->test = test;
-		t->buf = buf;
-	}
+	return NULL;
 }

@@ -1,5 +1,3 @@
-#ifndef NOSQLB_H_INCLUDED
-#define NOSQLB_H_INCLUDED
 
 /*
  * Copyright (C) 2011 Mail.RU
@@ -26,15 +24,38 @@
  * SUCH DAMAGE.
  */
 
-struct nosqlb {
-	struct nosqlb_funcs *funcs;
-	struct nosqlb_tests tests;
-	struct nosqlb_opt *opt;
-};
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 
-void nosqlb_init(struct nosqlb *bench,
-		 struct nosqlb_funcs *funcs, struct nosqlb_opt *opt);
-void nosqlb_free(struct nosqlb *bench);
-void nosqlb_run(struct nosqlb *bench);
+#include <sys/time.h>
 
-#endif /* NOSQLB_H_INCLUDED */
+#include <tnt.h>
+
+#include <nb_stat.h>
+
+static long long
+nb_stat_time(void)
+{
+    long long tm;
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    tm = ((long)tv.tv_sec)*1000;
+    tm += tv.tv_usec/1000;
+    return tm;
+}
+
+void
+nb_stat_start(struct nb_stat *stat, int count)
+{
+	memset(stat, 0, sizeof(struct nb_stat));
+	stat->count = count;
+	stat->start = nb_stat_time();
+}
+
+void
+nb_stat_stop(struct nb_stat *stat)
+{
+	stat->tm  = nb_stat_time() - stat->start;
+	stat->rps = (float)stat->count / ((float)stat->tm / 1000);
+}

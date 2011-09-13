@@ -1,5 +1,5 @@
-#ifndef NOSQLB_STAT_H_INCLUDED
-#define NOSQLB_STAT_H_INCLUDED
+#ifndef NB_RAW_H_INCLUDED
+#define NB_RAW_H_INCLUDED
 
 /*
  * Copyright (C) 2011 Mail.RU
@@ -26,14 +26,7 @@
  * SUCH DAMAGE.
  */
 
-struct nosqlb_stat {
-	long long start;
-	int count;
-	float tm;
-	float rps;
-};
+int nb_raw_insert(struct tnt *t, char *key, char *data, int data_size);
+int nb_raw_insert_recv(struct tnt *t);
 
-void nosqlb_stat_start(struct nosqlb_stat *stat, int count);
-void nosqlb_stat_stop(struct nosqlb_stat *stat);
-
-#endif /* NOSQLB_STAT_H_INCLUDED */
+#endif /* NB_RAW_H_INCLUDED */

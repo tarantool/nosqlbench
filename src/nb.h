@@ -1,3 +1,5 @@
+#ifndef NB_H_INCLUDED
+#define NB_H_INCLUDED
 
 /*
  * Copyright (C) 2011 Mail.RU
@@ -24,47 +26,17 @@
  * SUCH DAMAGE.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+struct nb {
+	struct nb_funcs *funcs;
+	struct nb_tests tests;
+	struct nb_opt *opt;
+};
 
-#include <tnt.h>
+void nb_init(struct nb *bench,
+	     struct nb_funcs *funcs, struct nb_opt *opt);
+void nb_free(struct nb *bench);
+void nb_info(struct nb *bench);
+void nb_info_int(struct nb *bench);
+void nb_run(struct nb *bench);
 
-#include <nosqlb_opt.h>
-
-void
-nosqlb_opt_init(struct nosqlb_opt *opt)
-{
-	opt->proto = TNT_PROTO_RW;
-	opt->host = "localhost";
-	opt->port = 33013;
-	opt->threads = 1;
-	opt->count = 1000;
-	opt->rep = 1;
-	opt->full = 0;
-	opt->tow = 0;
-	opt->per = opt->count / opt->threads;
-	opt->rbuf = 16384;
-	opt->sbuf = 16384;
-	opt->plot = 0;
-	opt->plot_dir = "benchmark";
-	opt->std = 0;
-	opt->std_memcache = 0;
-	STAILQ_INIT(&opt->tests);
-	opt->tests_count = 0;
-	STAILQ_INIT(&opt->bufs);
-	opt->bufs_count = 0;
-}
-
-void
-nosqlb_opt_free(struct nosqlb_opt *opt)
-{
-	struct nosqlb_opt_test *t, *tnext;
-	STAILQ_FOREACH_SAFE(t, &opt->tests, next, tnext) {
-		free(t->test);
-		free(t);
-	}
-	struct nosqlb_opt_buf *b, *bnext;
-	STAILQ_FOREACH_SAFE(b, &opt->bufs, next, bnext)
-		free(b);
-}
+#endif /* NB_H_INCLUDED */

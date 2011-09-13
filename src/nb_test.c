@@ -30,23 +30,23 @@
 
 #include <tnt.h>
 
-#include <nosqlb_stat.h>
-#include <nosqlb_func.h>
-#include <nosqlb_test.h>
+#include <nb_stat.h>
+#include <nb_func.h>
+#include <nb_test.h>
 
 void
-nosqlb_test_init(struct nosqlb_tests *tests)
+nb_test_init(struct nb_tests *tests)
 {
 	tests->count = 0;
 	STAILQ_INIT(&tests->list);
 }
 
 void
-nosqlb_test_free(struct nosqlb_tests *tests)
+nb_test_free(struct nb_tests *tests)
 {
-	struct nosqlb_test *t, *tnext;
+	struct nb_test *t, *tnext;
 	STAILQ_FOREACH_SAFE(t, &tests->list, next, tnext) {
-		struct nosqlb_test_buf *b, *bnext;
+		struct nb_test_buf *b, *bnext;
 		STAILQ_FOREACH_SAFE(b, &t->list, next, bnext) {
 			free(b);
 		}
@@ -54,41 +54,44 @@ nosqlb_test_free(struct nosqlb_tests *tests)
 	}
 }
 
-struct nosqlb_test*
-nosqlb_test_add(struct nosqlb_tests *tests, struct nosqlb_func *func)
+struct nb_test*
+nb_test_add(struct nb_tests *tests, struct nb_func *func)
 {
-	struct nosqlb_test *test =
-		malloc(sizeof(struct nosqlb_test));
+	struct nb_test *test =
+		malloc(sizeof(struct nb_test));
 	if (test == NULL)
 		return NULL;
 	test->func = func;
+	test->integral = 0.0;
+	test->integral_es = 0.0;
 	tests->count++;
 	STAILQ_INIT(&test->list);
 	STAILQ_INSERT_TAIL(&tests->list, test, next);
 	return test;
 }
 
-void
-nosqlb_test_buf_add(struct nosqlb_test *test, int buf)
+struct nb_test_buf*
+nb_test_buf_add(struct nb_test *test, int buf)
 {
-	struct nosqlb_test_buf *b =
-		malloc(sizeof(struct nosqlb_test_buf));
+	struct nb_test_buf *b =
+		malloc(sizeof(struct nb_test_buf));
 	if (b == NULL)
-		return;
+		return NULL;
 	b->buf = buf;
 	memset(&b->stat, 0, sizeof(b->stat));
-	memset(&b->stat_tow, 0, sizeof(b->stat_tow));
+	memset(&b->stat_es, 0, sizeof(b->stat_es));
 	test->count++;
 	STAILQ_INSERT_TAIL(&test->list, b, next);
+	return b;
 }
 
 char*
-nosqlb_test_buf_list(struct nosqlb_test *test)
+nb_test_buf_list(struct nb_test *test)
 {
 	int pos = 0;
 	int first = 1;
-	static char list[4096];
-	struct nosqlb_test_buf *b;
+	static char list[8096];
+	struct nb_test_buf *b;
 	STAILQ_FOREACH(b, &test->list, next) {
 		if (first) {
 			pos += snprintf(list + pos, sizeof(list) - pos, "%d", b->buf);
@@ -101,12 +104,12 @@ nosqlb_test_buf_list(struct nosqlb_test *test)
 }
 
 int
-nosqlb_test_buf_max(struct nosqlb_test *test)
+nb_test_buf_max(struct nb_test *test)
 {
-	int max;
+	uint32_t max;
 	if (test->count)
 		max = STAILQ_FIRST(&test->list)->buf;
-	struct nosqlb_test_buf *b;
+	struct nb_test_buf *b;
 	STAILQ_FOREACH(b, &test->list, next) {
 		if (b->buf > max)
 			max = b->buf;
@@ -115,15 +118,57 @@ nosqlb_test_buf_max(struct nosqlb_test *test)
 }
 
 int
-nosqlb_test_buf_min(struct nosqlb_test *test)
+nb_test_buf_min(struct nb_test *test)
 {
-	int min;
+	uint32_t min;
 	if (test->count)
 		min = STAILQ_FIRST(&test->list)->buf;
-	struct nosqlb_test_buf *b;
+	struct nb_test_buf *b;
 	STAILQ_FOREACH(b, &test->list, next) {
 		if (b->buf < min)
 			min = b->buf;
 	}
 	return min;
+}
+
+static void
+nb_test_integratef(struct nb_test *test, double buf, double *rps, double *rpses)
+{
+	/* matching lower bound */
+	struct nb_test_buf *b, *start = NULL;
+	STAILQ_FOREACH(b, &test->list, next)
+		if (b->buf <= buf && (start == NULL || b->buf >= start->buf))
+			start = b;
+	if (start == NULL)
+		return;
+
+	/* interpolating rps value */
+	*rps = start->stat.rps +
+		((buf - start->buf) / (STAILQ_NEXT(start, next)->buf - start->buf)) *
+			(STAILQ_NEXT(start, next)->stat.rps - start->stat.rps);
+	*rpses = start->stat_es.rps +
+		((buf - start->buf) / (STAILQ_NEXT(start, next)->buf - start->buf)) *
+			(STAILQ_NEXT(start, next)->stat_es.rps - start->stat_es.rps);
+}
+
+void
+nb_test_integrate(struct nb_test *test)
+{
+	if (test->count <= 1)
+		return;
+	test->integral = 0.0;
+	double a = nb_test_buf_min(test),
+	       b = nb_test_buf_max(test);
+	double acq = 1000;
+	double interval = (b - a) / acq;
+	int i;
+	for (i = 1; i<= acq ; i++) {
+		double rps, rpses;
+		rps = rpses = 0.0;
+		nb_test_integratef(test, a + interval * (i - 0.5), &rps, &rpses);
+		test->integral += rps;
+		test->integral_es += rpses;
+	}
+	test->integral *= interval;
+	test->integral_es *= interval;
 }

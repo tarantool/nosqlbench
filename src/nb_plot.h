@@ -1,5 +1,5 @@
-#ifndef NOSQLB_OPT_H_INCLUDED
-#define NOSQLB_OPT_H_INCLUDED
+#ifndef NB_PLOT_H_INCLUDED
+#define NB_PLOT_H_INCLUDED
 
 /*
  * Copyright (C) 2011 Mail.RU
@@ -26,40 +26,6 @@
  * SUCH DAMAGE.
  */
 
-struct nosqlb_opt_test {
-	char *test;
-	STAILQ_ENTRY(nosqlb_opt_test) next;
-};
+int nb_plot_gen(struct nb *bench);
 
-struct nosqlb_opt_buf {
-	int buf;
-	STAILQ_ENTRY(nosqlb_opt_buf) next;
-};
-
-struct nosqlb_opt {
-	char *host;
-	int port;
-	int threads;
-	enum tnt_proto proto;
-	int rbuf;
-	int sbuf;
-	int count;
-	int rep;
-	int full;
-	int tow;
-	int per;
-	int plot;
-	char *plot_dir;
-	int std;
-	int std_memcache;
-	STAILQ_HEAD(,nosqlb_opt_test) tests;
-	int tests_count;
-	STAILQ_HEAD(,nosqlb_opt_buf) bufs;
-	int bufs_count;
-	char *buf_file;
-};
-
-void nosqlb_opt_init(struct nosqlb_opt *opt);
-void nosqlb_opt_free(struct nosqlb_opt *opt);
-
-#endif /* NOSQLB_OPT_H_INCLUDED */
+#endif /* NB_PLOT_H_INCLUDED */

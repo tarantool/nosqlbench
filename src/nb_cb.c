@@ -30,26 +30,27 @@
 
 #include <tnt.h>
 
-#include <nosqlb_stat.h>
-#include <nosqlb_func.h>
-#include <nosqlb_cb.h>
-#include <nosqlb_redis.h>
+#include <nb_stat.h>
+#include <nb_func.h>
+#include <nb_cb.h>
+#include <nb_redis.h>
+#include <nb_raw.h>
 
 static void
-nosqlb_cb_error(struct tnt *t, char *name)
+nb_cb_error(struct tnt *t, char *name)
 {
 	printf("%s failed: %s\n", name, tnt_strerror(t));
 }
 
 static void
-nosqlb_cb_recv(struct tnt *t, int count)
+nb_cb_recv(struct tnt *t, int count)
 {
 	int key;
 	for (key = 0 ; key < count ; key++) {
 		struct tnt_recv rcv; 
 		tnt_recv_init(&rcv);
 		if (tnt_recv(t, &rcv) == -1)
-			nosqlb_cb_error(t, "recv");
+			nb_cb_error(t, "recv");
 		else {
 			if (tnt_error(t) != TNT_EOK)
 				printf("server respond: %s (op: %d, reqid: %d, code: %d, count: %d)\n",
@@ -63,8 +64,8 @@ nosqlb_cb_recv(struct tnt *t, int count)
 }
 
 static void
-nosqlb_cb_insert_do(struct tnt *t, int tid, char *name, int bsize, int count, int flags,
-	            struct nosqlb_stat *stat)
+nb_cb_insert_do(struct tnt *t, int tid, char *name, int bsize, int count, int flags,
+		struct nb_stat *stat)
 {
 	char *buf = malloc(bsize);
 	if (buf == NULL) {
@@ -73,7 +74,7 @@ nosqlb_cb_insert_do(struct tnt *t, int tid, char *name, int bsize, int count, in
 	}
 	memset(buf, 'x', bsize);
 
-	nosqlb_stat_start(stat, count);
+	nb_stat_start(stat, count);
 
 	int i;
 	for (i = 0 ; i < count ; i++) {
@@ -84,20 +85,20 @@ nosqlb_cb_insert_do(struct tnt *t, int tid, char *name, int bsize, int count, in
 		tnt_tuple_add(&tu, key, key_len);
 		tnt_tuple_add(&tu, buf, bsize);
 		if (tnt_insert(t, i, 0, flags, &tu) == -1)
-			nosqlb_cb_error(t, name);
+			nb_cb_error(t, name);
 		tnt_tuple_free(&tu);
 	}
 
 	tnt_flush(t);
-	nosqlb_cb_recv(t, count);
-	nosqlb_stat_stop(stat);
+	nb_cb_recv(t, count);
+	nb_stat_stop(stat);
 
 	free(buf);
 }
 
 static void
-nosqlb_cb_insert_do_sync(struct tnt *t, int tid, char *name, int bsize, int count,
-		         int flags, struct nosqlb_stat *stat)
+nb_cb_insert_do_sync(struct tnt *t, int tid, char *name, int bsize, int count,
+		     int flags, struct nb_stat *stat)
 {
 	char *buf = malloc(bsize);
 	if (buf == NULL) {
@@ -106,7 +107,7 @@ nosqlb_cb_insert_do_sync(struct tnt *t, int tid, char *name, int bsize, int coun
 	}
 	memset(buf, 'x', bsize);
 
-	nosqlb_stat_start(stat, count);
+	nb_stat_start(stat, count);
 
 	int i;
 	for (i = 0 ; i < count ; i++) {
@@ -117,51 +118,51 @@ nosqlb_cb_insert_do_sync(struct tnt *t, int tid, char *name, int bsize, int coun
 		tnt_tuple_add(&tu, key, key_len);
 		tnt_tuple_add(&tu, buf, bsize);
 		if (tnt_insert(t, i, 0, flags, &tu) == -1)
-			nosqlb_cb_error(t, name);
+			nb_cb_error(t, name);
 		tnt_flush(t);
 		tnt_tuple_free(&tu);
 
-		nosqlb_cb_recv(t, 1);
+		nb_cb_recv(t, 1);
 	}
 
-	nosqlb_stat_stop(stat);
+	nb_stat_stop(stat);
 	free(buf);
 }
 
 static void
-nosqlb_cb_insert(struct tnt *t, int tid, int bsize, int count,
-		 struct nosqlb_stat *stat)
+nb_cb_insert(struct tnt *t, int tid, int bsize, int count,
+             struct nb_stat *stat)
 {
-	nosqlb_cb_insert_do(t, tid, "insert", bsize, count, 0, stat);
+	nb_cb_insert_do(t, tid, "insert", bsize, count, 0, stat);
 }
 
 static void
-nosqlb_cb_insert_ret(struct tnt *t, int tid, int bsize, int count,
-		     struct nosqlb_stat *stat)
+nb_cb_insert_ret(struct tnt *t, int tid, int bsize, int count,
+		 struct nb_stat *stat)
 {
-	nosqlb_cb_insert_do(t, tid, "insert-ret",
+	nb_cb_insert_do(t, tid, "insert-ret",
 		bsize, count, TNT_PROTO_FLAG_RETURN, stat);
 }
 
 static void
-nosqlb_cb_insert_sync(struct tnt *t, int tid, int bsize, int count,
-		      struct nosqlb_stat *stat)
+nb_cb_insert_sync(struct tnt *t, int tid, int bsize, int count,
+		  struct nb_stat *stat)
 {
-	nosqlb_cb_insert_do_sync(t, tid, "sync-insert",
+	nb_cb_insert_do_sync(t, tid, "sync-insert",
 		bsize, count, 0, stat);
 }
 
 static void
-nosqlb_cb_insert_ret_sync(struct tnt *t, int tid, int bsize, int count,
-			  struct nosqlb_stat *stat)
+nb_cb_insert_ret_sync(struct tnt *t, int tid, int bsize, int count,
+		      struct nb_stat *stat)
 {
-	nosqlb_cb_insert_do_sync(t, tid, "sync-insert-ret",
+	nb_cb_insert_do_sync(t, tid, "sync-insert-ret",
 		bsize, count, TNT_PROTO_FLAG_RETURN, stat);
 }
 
 static void
-nosqlb_cb_update_do(struct tnt *t, int tid, char *name, int bsize, int count,
-		    int flags, struct nosqlb_stat *stat)
+nb_cb_update_do(struct tnt *t, int tid, char *name, int bsize, int count,
+		int flags, struct nb_stat *stat)
 {
 	char *buf = malloc(bsize);
 	if (buf == NULL) {
@@ -170,7 +171,7 @@ nosqlb_cb_update_do(struct tnt *t, int tid, char *name, int bsize, int count,
 	}
 	memset(buf, 'x', bsize);
 
-	nosqlb_stat_start(stat, count);
+	nb_stat_start(stat, count);
 
 	int i;
 	for (i = 0 ; i < count ; i++) {
@@ -180,19 +181,19 @@ nosqlb_cb_update_do(struct tnt *t, int tid, char *name, int bsize, int count,
 		tnt_update_init(&u);
 		tnt_update_assign(&u, 1, buf, bsize);
 		if (tnt_update(t, i, 0, flags, key, key_len, &u) == -1)
-			nosqlb_cb_error(t, name);
+			nb_cb_error(t, name);
 		tnt_update_free(&u);
 	}
 
 	tnt_flush(t);
-	nosqlb_cb_recv(t, count);
-	nosqlb_stat_stop(stat);
+	nb_cb_recv(t, count);
+	nb_stat_stop(stat);
 
 	free(buf);
 }
 static void
-nosqlb_cb_update_do_sync(struct tnt *t, int tid, char *name, int bsize, int count, int flags,
-			 struct nosqlb_stat *stat)
+nb_cb_update_do_sync(struct tnt *t, int tid, char *name, int bsize, int count, int flags,
+		     struct nb_stat *stat)
 {
 	char *buf = malloc(bsize);
 	if (buf == NULL) {
@@ -201,7 +202,7 @@ nosqlb_cb_update_do_sync(struct tnt *t, int tid, char *name, int bsize, int coun
 	}
 	memset(buf, 'x', bsize);
 
-	nosqlb_stat_start(stat, count);
+	nb_stat_start(stat, count);
 
 	int i;
 	for (i = 0 ; i < count ; i++) {
@@ -211,53 +212,53 @@ nosqlb_cb_update_do_sync(struct tnt *t, int tid, char *name, int bsize, int coun
 		tnt_update_init(&u);
 		tnt_update_assign(&u, 1, buf, bsize);
 		if (tnt_update(t, i, 0, flags, key, key_len, &u) == -1)
-			nosqlb_cb_error(t, name);
+			nb_cb_error(t, name);
 		tnt_flush(t);
 		tnt_update_free(&u);
 
-		nosqlb_cb_recv(t, 1);
+		nb_cb_recv(t, 1);
 	}
 
-	nosqlb_stat_stop(stat);
+	nb_stat_stop(stat);
 	free(buf);
 }
 
 static void
-nosqlb_cb_update(struct tnt *t, int tid, int bsize, int count,
-		 struct nosqlb_stat *stat)
+nb_cb_update(struct tnt *t, int tid, int bsize, int count,
+	     struct nb_stat *stat)
 {
-	nosqlb_cb_update_do(t, tid, "update", bsize, count, 0, stat);
+	nb_cb_update_do(t, tid, "update", bsize, count, 0, stat);
 }
 
 static void
-nosqlb_cb_update_ret(struct tnt *t, int tid, int bsize, int count,
-		     struct nosqlb_stat *stat)
+nb_cb_update_ret(struct tnt *t, int tid, int bsize, int count,
+		 struct nb_stat *stat)
 {
-	nosqlb_cb_update_do(t, tid, "update-ret",
+	nb_cb_update_do(t, tid, "update-ret",
 		bsize, count, TNT_PROTO_FLAG_RETURN, stat);
 }
 
 static void
-nosqlb_cb_update_sync(struct tnt *t, int tid, int bsize, int count,
-		      struct nosqlb_stat *stat)
+nb_cb_update_sync(struct tnt *t, int tid, int bsize, int count,
+		  struct nb_stat *stat)
 {
-	nosqlb_cb_update_do_sync(t, tid, "sync-update",
+	nb_cb_update_do_sync(t, tid, "sync-update",
 		bsize, count, 0, stat);
 }
 
 static void
-nosqlb_cb_update_ret_sync(struct tnt *t, int tid, int bsize, int count,
-			  struct nosqlb_stat *stat)
+nb_cb_update_ret_sync(struct tnt *t, int tid, int bsize, int count,
+		      struct nb_stat *stat)
 {
-	nosqlb_cb_update_do_sync(t, tid, "sync-update-ret",
+	nb_cb_update_do_sync(t, tid, "sync-update-ret",
 		bsize, count, TNT_PROTO_FLAG_RETURN, stat);
 }
 
 static void
-nosqlb_cb_select(struct tnt *t, int tid, int bsize, int count,
-		 struct nosqlb_stat *stat)
+nb_cb_select(struct tnt *t, int tid, int bsize, int count,
+	     struct nb_stat *stat)
 {
-	nosqlb_stat_start(stat, count);
+	nb_stat_start(stat, count);
 
 	int i;
 	for (i = 0 ; i < count ; i++) {
@@ -269,20 +270,20 @@ nosqlb_cb_select(struct tnt *t, int tid, int bsize, int count,
 		tnt_tuple_init(tu);
 		tnt_tuple_add(tu, key, key_len);
 		if (tnt_select(t, i, 0, 0, 0, 100, &tuples) == -1)
-			nosqlb_cb_error(t, "select");
+			nb_cb_error(t, "select");
 		tnt_tuples_free(&tuples);
 	}
 
 	tnt_flush(t);
-	nosqlb_cb_recv(t, count);
-	nosqlb_stat_stop(stat);
+	nb_cb_recv(t, count);
+	nb_stat_stop(stat);
 }
 
 static void
-nosqlb_cb_select_sync(struct tnt *t, int tid, int bsize, int count,
-		      struct nosqlb_stat *stat)
+nb_cb_select_sync(struct tnt *t, int tid, int bsize, int count,
+		  struct nb_stat *stat)
 {
-	nosqlb_stat_start(stat, count);
+	nb_stat_start(stat, count);
 
 	int i;
 	for (i = 0 ; i < count ; i++) {
@@ -294,55 +295,55 @@ nosqlb_cb_select_sync(struct tnt *t, int tid, int bsize, int count,
 		tnt_tuple_init(tu);
 		tnt_tuple_add(tu, key, key_len);
 		if (tnt_select(t, i, 0, 0, 0, 100, &tuples) == -1)
-			nosqlb_cb_error(t, "sync-select");
+			nb_cb_error(t, "sync-select");
 		tnt_flush(t);
 		tnt_tuples_free(&tuples);
 
-		nosqlb_cb_recv(t, 1);
+		nb_cb_recv(t, 1);
 	}
 
-	nosqlb_stat_stop(stat);
+	nb_stat_stop(stat);
 }
 
 static void
-nosqlb_cb_ping(struct tnt *t, int tid __attribute__((unused)),
-	       int bsize __attribute__((unused)), int count,
-	       struct nosqlb_stat *stat)
+nb_cb_ping(struct tnt *t, int tid __attribute__((unused)),
+	   int bsize __attribute__((unused)), int count,
+           struct nb_stat *stat)
 {
-	nosqlb_stat_start(stat, count);
+	nb_stat_start(stat, count);
 
 	int i;
 	for (i = 0 ; i < count ; i++) {
 		if (tnt_ping(t, i) == -1)
-			nosqlb_cb_error(t, "ping");
+			nb_cb_error(t, "ping");
 	}
 
 	tnt_flush(t);
-	nosqlb_cb_recv(t, count);
-	nosqlb_stat_stop(stat);
+	nb_cb_recv(t, count);
+	nb_stat_stop(stat);
 }
 
 static void
-nosqlb_cb_ping_sync(struct tnt *t, int tid __attribute__((unused)),
-		    int bsize __attribute__((unused)), int count,
-		    struct nosqlb_stat *stat)
+nb_cb_ping_sync(struct tnt *t, int tid __attribute__((unused)),
+		int bsize __attribute__((unused)), int count,
+		struct nb_stat *stat)
 {
-	nosqlb_stat_start(stat, count);
+	nb_stat_start(stat, count);
 
 	int i;
 	for (i = 0 ; i < count ; i++) {
 		if (tnt_ping(t, i) == -1)
-			nosqlb_cb_error(t, "sync-ping");
+			nb_cb_error(t, "sync-ping");
 		tnt_flush(t);
-		nosqlb_cb_recv(t, 1);
+		nb_cb_recv(t, 1);
 	}
 
-	nosqlb_stat_stop(stat);
+	nb_stat_stop(stat);
 }
 
 static void
-nosqlb_cb_memcache_set(struct tnt *t, int tid, int bsize, int count,
-		       struct nosqlb_stat *stat)
+nb_cb_memcache_set(struct tnt *t, int tid, int bsize, int count,
+		   struct nb_stat *stat)
 {
 	char *buf = malloc(bsize);
 	if (buf == NULL) {
@@ -351,25 +352,25 @@ nosqlb_cb_memcache_set(struct tnt *t, int tid, int bsize, int count,
 	}
 	memset(buf, 'x', bsize);
 
-	nosqlb_stat_start(stat, count);
+	nb_stat_start(stat, count);
 
 	int i;
 	for (i = 0 ; i < count ; i++) {
 		char key[32];
 		snprintf(key, sizeof(key), "key_%d_%d_%d", tid, bsize, i);
 		if (tnt_memcache_set(t, 0, 0, key, buf, bsize) == -1)
-			nosqlb_cb_error(t, "set");
+			nb_cb_error(t, "set");
 	}
 
-	nosqlb_stat_stop(stat);
+	nb_stat_stop(stat);
 	free(buf);
 }
 
 static void
-nosqlb_cb_memcache_get(struct tnt *t, int tid, int bsize, int count,
-		       struct nosqlb_stat *stat)
+nb_cb_memcache_get(struct tnt *t, int tid, int bsize, int count,
+		   struct nb_stat *stat)
 {
-	nosqlb_stat_start(stat, count);
+	nb_stat_start(stat, count);
 
 	int key;
 	char keydesc[32];
@@ -382,21 +383,21 @@ nosqlb_cb_memcache_get(struct tnt *t, int tid, int bsize, int count,
 		tnt_memcache_val_init(&vals);
 
 		if (tnt_memcache_get(t, 0, 1, keyptr, &vals) == -1)
-			nosqlb_cb_error(t, "get");
+			nb_cb_error(t, "get");
 
 		tnt_memcache_val_free(&vals);
 	}
 
-	nosqlb_stat_stop(stat);
+	nb_stat_stop(stat);
 }
 
 static void
-nosqlb_cb_redis_set_recv(struct tnt *t, int count)
+nb_cb_redis_set_recv(struct tnt *t, int count)
 {
 	int key;
 	for (key = 0 ; key < count ; key++) {
-		if (nosqlb_redis_set_recv(t) == -1)
-			nosqlb_cb_error(t, "recv");
+		if (nb_redis_set_recv(t) == -1)
+			nb_cb_error(t, "recv");
 		else {
 			if (tnt_error(t) != TNT_EOK)
 				printf("server respond: %s\n", tnt_strerror(t));
@@ -405,8 +406,8 @@ nosqlb_cb_redis_set_recv(struct tnt *t, int count)
 }
 
 static void
-nosqlb_cb_redis_set(struct tnt *t, int tid, int bsize, int count,
-		    struct nosqlb_stat *stat)
+nb_cb_redis_set(struct tnt *t, int tid, int bsize, int count,
+		    struct nb_stat *stat)
 {
 	char *buf = malloc(bsize);
 	if (buf == NULL) {
@@ -415,26 +416,26 @@ nosqlb_cb_redis_set(struct tnt *t, int tid, int bsize, int count,
 	}
 	memset(buf, 'x', bsize);
 
-	nosqlb_stat_start(stat, count);
+	nb_stat_start(stat, count);
 
 	int i;
 	for (i = 0 ; i < count ; i++) {
 		char key[32];
 		snprintf(key, sizeof(key), "key_%d_%d_%d", tid, bsize, i);
-		if (nosqlb_redis_set(t, key, buf, bsize) == -1)
-			nosqlb_cb_error(t, "set");
+		if (nb_redis_set(t, key, buf, bsize) == -1)
+			nb_cb_error(t, "set");
 	}
 
 	tnt_flush(t);
-	nosqlb_cb_redis_set_recv(t, count);
-	nosqlb_stat_stop(stat);
+	nb_cb_redis_set_recv(t, count);
+	nb_stat_stop(stat);
 
 	free(buf);
 }
 
 static void
-nosqlb_cb_redis_set_sync(struct tnt *t, int tid, int bsize, int count,
-			 struct nosqlb_stat *stat)
+nb_cb_redis_set_sync(struct tnt *t, int tid, int bsize, int count,
+		     struct nb_stat *stat)
 {
 	char *buf = malloc(bsize);
 	if (buf == NULL) {
@@ -443,31 +444,31 @@ nosqlb_cb_redis_set_sync(struct tnt *t, int tid, int bsize, int count,
 	}
 	memset(buf, 'x', bsize);
 
-	nosqlb_stat_start(stat, count);
+	nb_stat_start(stat, count);
 
 	int i;
 	for (i = 0 ; i < count ; i++) {
 		char key[32];
 		snprintf(key, sizeof(key), "key_%d_%d_%d", tid, bsize, i);
-		if (nosqlb_redis_set(t, key, buf, bsize) == -1)
-			nosqlb_cb_error(t, "set");
+		if (nb_redis_set(t, key, buf, bsize) == -1)
+			nb_cb_error(t, "set");
 		tnt_flush(t);
-		nosqlb_cb_redis_set_recv(t, 1);
+		nb_cb_redis_set_recv(t, 1);
 	}
 
-	nosqlb_stat_stop(stat);
+	nb_stat_stop(stat);
 	free(buf);
 }
 
 static void
-nosqlb_cb_redis_get_recv(struct tnt *t, int count)
+nb_cb_redis_get_recv(struct tnt *t, int count)
 {
 	int key;
 	for (key = 0 ; key < count ; key++) {
 		char *buf;
 		int buf_size;
-		if (nosqlb_redis_get_recv(t, &buf, &buf_size) == -1)
-			nosqlb_cb_error(t, "recv");
+		if (nb_redis_get_recv(t, &buf, &buf_size) == -1)
+			nb_cb_error(t, "recv");
 		else {
 			if (tnt_error(t) != TNT_EOK)
 				printf("server respond: %s\n", tnt_strerror(t));
@@ -477,65 +478,109 @@ nosqlb_cb_redis_get_recv(struct tnt *t, int count)
 }
 
 static void
-nosqlb_cb_redis_get(struct tnt *t, int tid, int bsize, int count,
-		    struct nosqlb_stat *stat)
+nb_cb_redis_get(struct tnt *t, int tid, int bsize, int count,
+		struct nb_stat *stat)
 {
-	nosqlb_stat_start(stat, count);
+	nb_stat_start(stat, count);
 
 	int i;
 	for (i = 0 ; i < count ; i++) {
 		char key[32];
 		snprintf(key, sizeof(key), "key_%d_%d_%d", tid, bsize, i);
-		if (nosqlb_redis_get(t, key) == -1)
-			nosqlb_cb_error(t, "get");
+		if (nb_redis_get(t, key) == -1)
+			nb_cb_error(t, "get");
 	}
 
 	tnt_flush(t);
-	nosqlb_cb_redis_get_recv(t, count);
-	nosqlb_stat_stop(stat);
+	nb_cb_redis_get_recv(t, count);
+	nb_stat_stop(stat);
 }
 
 static void
-nosqlb_cb_redis_get_sync(struct tnt *t, int tid, int bsize, int count,
-			 struct nosqlb_stat *stat)
+nb_cb_redis_get_sync(struct tnt *t, int tid, int bsize, int count,
+		     struct nb_stat *stat)
 {
-	nosqlb_stat_start(stat, count);
+	nb_stat_start(stat, count);
 
 	int i;
 	for (i = 0 ; i < count ; i++) {
 		char key[32];
 		snprintf(key, sizeof(key), "key_%d_%d_%d", tid, bsize, i);
-		if (nosqlb_redis_get(t, key) == -1)
-			nosqlb_cb_error(t, "get");
+		if (nb_redis_get(t, key) == -1)
+			nb_cb_error(t, "get");
 		tnt_flush(t);
-		nosqlb_cb_redis_get_recv(t, 1);
+		nb_cb_redis_get_recv(t, 1);
 	}
 
-	nosqlb_stat_stop(stat);
+	nb_stat_stop(stat);
+}
+
+static void
+nb_cb_raw_insert_recv(struct tnt *t, int count)
+{
+	int key;
+	for (key = 0 ; key < count ; key++) {
+		if (nb_raw_insert_recv(t) == -1)
+			nb_cb_error(t, "recv");
+		else {
+			if (tnt_error(t) != TNT_EOK)
+				printf("server respond: %s\n", tnt_strerror(t));
+		}
+	}
+}
+
+static void
+nb_cb_raw_insert(struct tnt *t, int tid, int bsize, int count,
+		 struct nb_stat *stat)
+{
+	char *buf = malloc(bsize);
+	if (buf == NULL) {
+		printf("memory allocation of %d bytes failed\n", bsize);
+		return;
+	}
+	memset(buf, 'x', bsize);
+
+	nb_stat_start(stat, count);
+
+	int i;
+	for (i = 0 ; i < count ; i++) {
+		char key[32];
+		snprintf(key, sizeof(key), "key_%d_%d_%d", tid, bsize, i);
+		if (nb_raw_insert(t, key, buf, bsize) == -1)
+			nb_cb_error(t, "insert");
+	}
+
+	tnt_flush(t);
+	nb_cb_raw_insert_recv(t, count);
+	nb_stat_stop(stat);
+
+	free(buf);
 }
 
 void
-nosqlb_cb_init(struct nosqlb_funcs *funcs)
+nb_cb_init(struct nb_funcs *funcs)
 {
-	nosqlb_func_add(funcs, "tnt-insert", nosqlb_cb_insert);
-	nosqlb_func_add(funcs, "tnt-insert-ret", nosqlb_cb_insert_ret);
-	nosqlb_func_add(funcs, "tnt-update", nosqlb_cb_update);
-	nosqlb_func_add(funcs, "tnt-update-ret", nosqlb_cb_update_ret);
-	nosqlb_func_add(funcs, "tnt-select", nosqlb_cb_select);
-	nosqlb_func_add(funcs, "tnt-ping", nosqlb_cb_ping);
+	nb_func_add(funcs, "tnt-insert", nb_cb_insert);
+	nb_func_add(funcs, "tnt-insert-ret", nb_cb_insert_ret);
+	nb_func_add(funcs, "tnt-update", nb_cb_update);
+	nb_func_add(funcs, "tnt-update-ret", nb_cb_update_ret);
+	nb_func_add(funcs, "tnt-select", nb_cb_select);
+	nb_func_add(funcs, "tnt-ping", nb_cb_ping);
 
-	nosqlb_func_add(funcs, "tnt-insert-sync", nosqlb_cb_insert_sync);
-	nosqlb_func_add(funcs, "tnt-insert-ret-sync", nosqlb_cb_insert_ret_sync);
-	nosqlb_func_add(funcs, "tnt-update-sync", nosqlb_cb_update_sync);
-	nosqlb_func_add(funcs, "tnt-update-ret-sync", nosqlb_cb_update_ret_sync);
-	nosqlb_func_add(funcs, "tnt-select-sync", nosqlb_cb_select_sync);
-	nosqlb_func_add(funcs, "tnt-ping-sync", nosqlb_cb_ping_sync);
+	nb_func_add(funcs, "tnt-insert-sync", nb_cb_insert_sync);
+	nb_func_add(funcs, "tnt-insert-ret-sync", nb_cb_insert_ret_sync);
+	nb_func_add(funcs, "tnt-update-sync", nb_cb_update_sync);
+	nb_func_add(funcs, "tnt-update-ret-sync", nb_cb_update_ret_sync);
+	nb_func_add(funcs, "tnt-select-sync", nb_cb_select_sync);
+	nb_func_add(funcs, "tnt-ping-sync", nb_cb_ping_sync);
 
-	nosqlb_func_add(funcs, "memcache-set", nosqlb_cb_memcache_set);
-	nosqlb_func_add(funcs, "memcache-get", nosqlb_cb_memcache_get);
+	nb_func_add(funcs, "tnt-raw-insert", nb_cb_raw_insert);
 
-	nosqlb_func_add(funcs, "redis-set", nosqlb_cb_redis_set);
-	nosqlb_func_add(funcs, "redis-get", nosqlb_cb_redis_get);
-	nosqlb_func_add(funcs, "redis-set-sync", nosqlb_cb_redis_set_sync);
-	nosqlb_func_add(funcs, "redis-get-sync", nosqlb_cb_redis_get_sync);
+	nb_func_add(funcs, "memcache-set", nb_cb_memcache_set);
+	nb_func_add(funcs, "memcache-get", nb_cb_memcache_get);
+
+	nb_func_add(funcs, "redis-set", nb_cb_redis_set);
+	nb_func_add(funcs, "redis-get", nb_cb_redis_get);
+	nb_func_add(funcs, "redis-set-sync", nb_cb_redis_set_sync);
+	nb_func_add(funcs, "redis-get-sync", nb_cb_redis_get_sync);
 }

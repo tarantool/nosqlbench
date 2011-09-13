@@ -34,13 +34,13 @@
 
 #include <tnt.h>
 
-#include <nosqlb_stat.h>
-#include <nosqlb_func.h>
-#include <nosqlb_cb.h>
-#include <nosqlb_redis.h>
+#include <nb_stat.h>
+#include <nb_func.h>
+#include <nb_cb.h>
+#include <nb_redis.h>
 
 int
-nosqlb_redis_set(struct tnt *t, char *key, char *data, int data_size)
+nb_redis_set(struct tnt *t, char *key, char *data, int data_size)
 {
 	char buf[64];
 	int len = snprintf(buf, sizeof(buf), "SET %s \"", key);
@@ -52,7 +52,6 @@ nosqlb_redis_set(struct tnt *t, char *key, char *data, int data_size)
 	v[1].iov_len  = data_size;
 	v[2].iov_base = "\"\r\n";
 	v[2].iov_len  = 3;
-
 	int r = tnt_io_sendv(t, v, 3);
 	if (r < 0) {
 		t->error = TNT_ESYSTEM;
@@ -62,7 +61,7 @@ nosqlb_redis_set(struct tnt *t, char *key, char *data, int data_size)
 }
 
 int
-nosqlb_redis_set_recv(struct tnt *t)
+nb_redis_set_recv(struct tnt *t)
 {
 	t->error = tnt_io_recv_expect(t, "+OK\r\n");
 	if (t->error != TNT_EOK)
@@ -71,7 +70,7 @@ nosqlb_redis_set_recv(struct tnt *t)
 }
 
 int
-nosqlb_redis_get(struct tnt *t, char *key)
+nb_redis_get(struct tnt *t, char *key)
 {
 	char buf[64];
 	int len = snprintf(buf, sizeof(buf), "GET %s\r\n", key);
@@ -89,7 +88,7 @@ nosqlb_redis_get(struct tnt *t, char *key)
 }
 
 int
-nosqlb_redis_get_recv(struct tnt *t, char **data, int *data_size)
+nb_redis_get_recv(struct tnt *t, char **data, int *data_size)
 {
 	/*
 		GET mykey

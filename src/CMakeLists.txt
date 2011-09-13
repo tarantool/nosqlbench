@@ -1,21 +1,23 @@
 
-set(nosqlb_bin  nosqlb)
+set(nb_bin  nb)
 
-set(nosqlb_libs tnt)
-set(nosqlb_src
-	nosqlb_arg.c
-	nosqlb_stat.c
-	nosqlb_func.c
-	nosqlb_test.c
-	nosqlb_opt.c
-	nosqlb_plot.c
-	nosqlb_cb.c
-	nosqlb_redis.c
-	nosqlb_thread.c
-	nosqlb.c
-	nosqlb_main.c)
+set(nb_libs tnt m)
+set(nb_src
+	nb_arg.c
+	nb_stat.c
+	nb_func.c
+	nb_test.c
+	nb_opt.c
+	nb_plot.c
+	nb_data.c
+	nb_cb.c
+	nb_redis.c
+	nb_raw.c
+	nb_thread.c
+	nb.c
+	nb_main.c)
 
-add_executable(${nosqlb_bin} ${nosqlb_src})
-target_link_libraries(${nosqlb_bin} ${nosqlb_libs})
+add_executable(${nb_bin} ${nb_src})
+target_link_libraries(${nb_bin} ${nb_libs})
 
-install_targets(/bin ${nosqlb_bin})
+install_targets(/bin ${nb_bin})

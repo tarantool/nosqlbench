@@ -1,5 +1,3 @@
-#ifndef NOSQLB_TEST_H_INCLUDED
-#define NOSQLB_TEST_H_INCLUDED
 
 /*
  * Copyright (C) 2011 Mail.RU
@@ -26,34 +24,57 @@
  * SUCH DAMAGE.
  */
 
-struct nosqlb_test_buf {
-	int buf;
-	struct nosqlb_stat stat;
-	struct nosqlb_stat stat_tow;
-	STAILQ_ENTRY(nosqlb_test_buf) next;
-};
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 
-struct nosqlb_test {
-	struct nosqlb_func *func;
-	int count;
-	STAILQ_HEAD(,nosqlb_test_buf) list;
-	STAILQ_ENTRY(nosqlb_test) next;
-};
+#include <tnt.h>
 
-struct nosqlb_tests {
-	int count;
-	STAILQ_HEAD(,nosqlb_test) list;
-};
+#include <nb_arg.h>
 
-void nosqlb_test_init(struct nosqlb_tests *tests);
-void nosqlb_test_free(struct nosqlb_tests *tests);
+void
+nb_arg_init(struct nb_arg *arg,
+	    struct nb_arg_cmd *cmds, int argc, char * argv[])
+{
+	arg->argc = argc;
+	arg->argv = argv;
+	arg->cmds = cmds;
+	arg->pos  = 0;
+}
 
-struct nosqlb_test*
-nosqlb_test_add(struct nosqlb_tests *tests, struct nosqlb_func *func);
-void nosqlb_test_buf_add(struct nosqlb_test *test, int buf);
+static struct nb_arg_cmd*
+nb_arg_cmp(struct nb_arg *arg, char *argument)
+{
+	int iter = 0;
+	for (;arg->cmds[iter].name ; iter++) {
+		if (strcmp(arg->cmds[iter].name, argument) == 0)
+			return (&arg->cmds[iter]);
+	}
+	return NULL;
+}
 
-char *nosqlb_test_buf_list(struct nosqlb_test *test);
-int nosqlb_test_buf_max(struct nosqlb_test *test);
-int nosqlb_test_buf_min(struct nosqlb_test *test);
-
-#endif /* NOSQLB_TEST_H_INCLUDED */
+int
+nb_arg(struct nb_arg *arg, int *argc, char ***argv)
+{
+	struct nb_arg_cmd *cmd;
+	for (arg->pos++ ; arg->pos < arg->argc ; arg->pos++) {
+		cmd = nb_arg_cmp(arg, arg->argv[arg->pos]);
+		if (cmd == NULL) {
+			arg->argc = (arg->argc - arg->pos);
+			arg->argv = (arg->argv + arg->pos);
+			return NB_ARG_UNKNOWN;
+		}
+		*argc = 0;
+		*argv = NULL;
+		if (cmd->argc == 0)
+			return cmd->token;
+		if ((arg->pos + 1) < arg->argc) {
+			*argc = arg->argc;
+			*argv = arg->argv + arg->pos + 1;
+			arg->pos += cmd->argc;
+			return cmd->token;
+		} else
+			return NB_ARG_ERROR;
+	}
+	return NB_ARG_DONE;
+}

@@ -1,5 +1,5 @@
-#ifndef NOSQLB_THREAD_H_INCLUDED
-#define NOSQLB_THREAD_H_INCLUDED
+#ifndef NB_REDIS_H_INCLUDED
+#define NB_REDIS_H_INCLUDED
 
 /*
  * Copyright (C) 2011 Mail.RU
@@ -26,36 +26,10 @@
  * SUCH DAMAGE.
  */
 
-typedef void *(*nosqlb_threadf_t)(void*);
+int nb_redis_set(struct tnt *t, char *key, char *data, int data_size);
+int nb_redis_set_recv(struct tnt *t);
 
-struct nosqlb;
-struct nosqlb_test;
-struct nosqlb_test_buf;
+int nb_redis_get(struct tnt *t, char *key);
+int nb_redis_get_recv(struct tnt *t, char **data, int *data_size);
 
-struct nosqlb_thread {
-	int idx;
-	pthread_t thread;
-	struct nosqlb *nosqlb;
-	struct nosqlb_test *test;
-	struct nosqlb_test_buf *buf;
-	struct nosqlb_stat stat;
-};
-
-struct nosqlb_threads {
-	int count;
-	struct nosqlb_thread *threads;
-};
-
-void nosqlb_threads_init(struct nosqlb_threads *threads);
-void nosqlb_threads_free(struct nosqlb_threads *threads);
-
-int nosqlb_threads_create(struct nosqlb_threads *threads, int count,
-		          struct nosqlb *b,
-			  nosqlb_threadf_t cb);
-
-int nosqlb_threads_join(struct nosqlb_threads *threads);
-
-void nosqlb_threads_set(struct nosqlb_threads *threads,
-		        struct nosqlb_test *test, struct nosqlb_test_buf *buf);
-
-#endif /* NOSQLB_WORKER_H_INCLUDED */
+#endif /* NB_REDIS_H_INCLUDED */

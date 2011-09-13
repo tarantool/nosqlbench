@@ -1,5 +1,5 @@
-#ifndef NOSQLB_FUNC_H_INCLUDED
-#define NOSQLB_FUNC_H_INCLUDED
+#ifndef NB_THREAD_H_INCLUDED
+#define NB_THREAD_H_INCLUDED
 
 /*
  * Copyright (C) 2011 Mail.RU
@@ -26,30 +26,36 @@
  * SUCH DAMAGE.
  */
 
-struct nosqlb_stat;
+typedef void *(*nb_threadf_t)(void*);
 
-struct nosqlb_func {
-	char *name;
-	void (*func)(struct tnt *t, int tid, int bsize, int count,
-	             struct nosqlb_stat *stat);
-	STAILQ_ENTRY(nosqlb_func) next;
+struct nb;
+struct nb_test;
+struct nb_test_buf;
+
+struct nb_thread {
+	int idx;
+	pthread_t thread;
+	struct nb *nb;
+	struct nb_test *test;
+	struct nb_test_buf *buf;
+	struct nb_stat stat;
 };
 
-struct nosqlb_funcs {
+struct nb_threads {
 	int count;
-	STAILQ_HEAD(,nosqlb_func) list;
+	struct nb_thread *threads;
 };
 
-void nosqlb_func_init(struct nosqlb_funcs *funcs);
-void nosqlb_func_free(struct nosqlb_funcs *funcs);
+void nb_threads_init(struct nb_threads *threads);
+void nb_threads_free(struct nb_threads *threads);
 
-struct nosqlb_func*
-nosqlb_func_add(struct nosqlb_funcs *funcs,
-		char *name,
-		void (*func)(struct tnt *t, int tid, int bsize, int count,
-			     struct nosqlb_stat *stat));
+int nb_threads_create(struct nb_threads *threads, int count,
+		      struct nb *b,
+		      nb_threadf_t cb);
 
-struct nosqlb_func*
-nosqlb_func_match(struct nosqlb_funcs *funcs, char *name);
+int nb_threads_join(struct nb_threads *threads);
 
-#endif /* NOSQLB_FUNC_H_INCLUDED */
+void nb_threads_set(struct nb_threads *threads,
+		    struct nb_test *test, struct nb_test_buf *buf);
+
+#endif /* NB_WORKER_H_INCLUDED */

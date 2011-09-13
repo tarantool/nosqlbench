@@ -1,5 +1,5 @@
-#ifndef NOSQLB_CB_H_INCLUDED
-#define NOSQLB_CB_H_INCLUDED
+#ifndef NB_TEST_H_INCLUDED
+#define NB_TEST_H_INCLUDED
 
 /*
  * Copyright (C) 2011 Mail.RU
@@ -26,6 +26,40 @@
  * SUCH DAMAGE.
  */
 
-void nosqlb_cb_init(struct nosqlb_funcs *funcs);
+struct nb_test_buf {
+	uint32_t buf;
+	struct nb_stat stat;
+	struct nb_stat stat_es;
+	STAILQ_ENTRY(nb_test_buf) next;
+};
 
-#endif /* NOSQLB_CB_H_INCLUDED */
+struct nb_test {
+	struct nb_func *func;
+	uint32_t count;
+	double integral;
+	double integral_es;
+	STAILQ_HEAD(,nb_test_buf) list;
+	STAILQ_ENTRY(nb_test) next;
+};
+
+struct nb_tests {
+	uint32_t count;
+	STAILQ_HEAD(,nb_test) list;
+};
+
+void nb_test_init(struct nb_tests *tests);
+void nb_test_free(struct nb_tests *tests);
+
+struct nb_test*
+nb_test_add(struct nb_tests *tests, struct nb_func *func);
+
+struct nb_test_buf*
+nb_test_buf_add(struct nb_test *test, int buf);
+
+char *nb_test_buf_list(struct nb_test *test);
+int nb_test_buf_max(struct nb_test *test);
+int nb_test_buf_min(struct nb_test *test);
+
+void nb_test_integrate(struct nb_test *test);
+
+#endif /* NB_TEST_H_INCLUDED */

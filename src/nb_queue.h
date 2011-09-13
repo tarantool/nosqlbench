@@ -30,8 +30,8 @@
  * $FreeBSD: src/sys/sys/queue.h,v 1.60.2.1 2005/08/16 22:41:39 phk Exp $
  */
 
-#ifndef NOSQLB_QUEUE_H_INCLUDED
-#define	NOSQLB_QUEUE_H_INCLUDED
+#ifndef NB_QUEUE_H_INCLUDED
+#define	NB_QUEUE_H_INCLUDED
 
 #include <sys/cdefs.h>
 
@@ -550,4 +550,4 @@ void	remque(void *a);
 
 #endif /* _KERNEL */
 
-#endif /* !NOSQLB_QUEUE_H_INCLUDED */
+#endif /* !NB_QUEUE_H_INCLUDED */

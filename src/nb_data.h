@@ -1,5 +1,5 @@
-#ifndef NOSQLB_REDIS_H_INCLUDED
-#define NOSQLB_REDIS_H_INCLUDED
+#ifndef NB_DATA_H_INCLUDED
+#define NB_DATA_H_INCLUDED
 
 /*
  * Copyright (C) 2011 Mail.RU
@@ -26,9 +26,7 @@
  * SUCH DAMAGE.
  */
 
-int nosqlb_redis_set(struct tnt *t, char *key, char *data, int data_size);
-int nosqlb_redis_set_recv(struct tnt *t);
-int nosqlb_redis_get(struct tnt *t, char *key);
-int nosqlb_redis_get_recv(struct tnt *t, char **data, int *data_size);
+int nb_data_save(struct nb *bench);
+int nb_data_load(struct nb *bench);
 
-#endif /* NOSQLB_REDIS_H_INCLUDED */
+#endif /* NB_DATA_H_INCLUDED */

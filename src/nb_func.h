@@ -1,3 +1,5 @@
+#ifndef NB_FUNC_H_INCLUDED
+#define NB_FUNC_H_INCLUDED
 
 /*
  * Copyright (C) 2011 Mail.RU
@@ -24,40 +26,30 @@
  * SUCH DAMAGE.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+struct nb_stat;
 
-#include <sys/time.h>
+struct nb_func {
+	char *name;
+	void (*func)(struct tnt *t, int tid, int bsize, int count,
+	             struct nb_stat *stat);
+	STAILQ_ENTRY(nb_func) next;
+};
 
-#include <tnt.h>
+struct nb_funcs {
+	int count;
+	STAILQ_HEAD(,nb_func) list;
+};
 
-#include <nosqlb_stat.h>
+void nb_func_init(struct nb_funcs *funcs);
+void nb_func_free(struct nb_funcs *funcs);
 
-static long long
-nosqlb_stat_time(void)
-{
-    long long tm;
-    struct timeval tv;
+struct nb_func*
+nb_func_add(struct nb_funcs *funcs,
+	    char *name,
+	    void (*func)(struct tnt *t, int tid, int bsize, int count,
+			 struct nb_stat *stat));
 
-    gettimeofday(&tv, NULL);
+struct nb_func*
+nb_func_match(struct nb_funcs *funcs, char *name);
 
-    tm = ((long)tv.tv_sec)*1000;
-    tm += tv.tv_usec/1000;
-    return tm;
-}
-
-void
-nosqlb_stat_start(struct nosqlb_stat *stat, int count)
-{
-	memset(stat, 0, sizeof(struct nosqlb_stat));
-	stat->count = count;
-	stat->start = nosqlb_stat_time();
-}
-
-void
-nosqlb_stat_stop(struct nosqlb_stat *stat)
-{
-	stat->tm  = nosqlb_stat_time() - stat->start;
-	stat->rps = (float)stat->count / ((float)stat->tm / 1000);
-}
+#endif /* NB_FUNC_H_INCLUDED */

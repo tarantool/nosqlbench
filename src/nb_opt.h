@@ -1,3 +1,5 @@
+#ifndef NB_OPT_H_INCLUDED
+#define NB_OPT_H_INCLUDED
 
 /*
  * Copyright (C) 2011 Mail.RU
@@ -24,55 +26,49 @@
  * SUCH DAMAGE.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+struct nb_opt_test {
+	char *test;
+	STAILQ_ENTRY(nb_opt_test) next;
+};
 
-#include <tnt.h>
+struct nb_opt_buf {
+	int buf;
+	STAILQ_ENTRY(nb_opt_buf) next;
+};
 
-#include <nosqlb_arg.h>
+enum {
+	NB_OPT_DATA_NONE,
+	NB_OPT_DATA_SAVE,
+	NB_OPT_DATA_PLOT,
+	NB_OPT_DATA_INFO,
+	NB_OPT_DATA_INFO_INT
+};
 
-void
-nosqlb_arg_init(struct nosqlb_arg *arg,
-	        struct nosqlb_arg_cmd *cmds, int argc, char * argv[])
-{
-	arg->argc = argc;
-	arg->argv = argv;
-	arg->cmds = cmds;
-	arg->pos  = 0;
-}
+struct nb_opt {
+	char *host;
+	uint32_t port;
+	uint32_t threads;
+	enum tnt_proto proto;
+	uint32_t rbuf;
+	uint32_t sbuf;
+	uint32_t count;
+	uint32_t rep;
+	uint32_t full;
+	uint32_t esync;
+	uint32_t per;
+	char *plot;
+	int data;
+	char *datap;
+	uint32_t std;
+	uint32_t std_memcache;
+	STAILQ_HEAD(,nb_opt_test) tests;
+	uint32_t tests_count;
+	STAILQ_HEAD(,nb_opt_buf) bufs;
+	uint32_t bufs_count;
+	char *buf_file;
+};
 
-static struct nosqlb_arg_cmd*
-nosqlb_arg_cmp(struct nosqlb_arg *arg, char *argument)
-{
-	int iter = 0;
-	for (;arg->cmds[iter].name ; iter++) {
-		if (strcmp(arg->cmds[iter].name, argument) == 0)
-			return (&arg->cmds[iter]);
-	}
-	return NULL;
-}
+void nb_opt_init(struct nb_opt *opt);
+void nb_opt_free(struct nb_opt *opt);
 
-int
-nosqlb_arg(struct nosqlb_arg *arg, char **argp)
-{
-	struct nosqlb_arg_cmd *cmd;
-	for (arg->pos++ ; arg->pos < arg->argc ; arg->pos++) {
-		cmd = nosqlb_arg_cmp(arg, arg->argv[arg->pos]);
-		if (cmd == NULL) {
-			arg->argc = (arg->argc - arg->pos);
-			arg->argv = (arg->argv + arg->pos);
-			return NOSQLB_ARG_UNKNOWN;
-		}
-		if (cmd->arg == 0) {
-			*argp = NULL;
-			return cmd->token;
-		}
-		if ((arg->pos + 1) < arg->argc) {
-			*argp = arg->argv[++arg->pos];
-			return cmd->token;
-		} else
-			return NOSQLB_ARG_ERROR;
-	}
-	return NOSQLB_ARG_DONE;
-}
+#endif /* NB_OPT_H_INCLUDED */
