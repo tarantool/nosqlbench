@@ -114,12 +114,12 @@ nb_plot_cfg(struct nb *bench, struct nb_test *test)
 
 	char plotfmt[1024];
 	snprintf(plotfmt, sizeof(plotfmt),
-		"plot '%s' using 1:2 with lines t \"%s\", \\\n"
+		"plot '%s' using 1:2 with lines t \"%s (%f sum)\", \\\n"
 		"'%s' using 1:2:2 with labels notitle, \\\n"
-		"'%s' using 1:3 with lines t \"%s (ex. threads sync)\", \\\n"
+		"'%s' using 1:3 with lines t \"%s (ex. threads sync) (%f sum)\", \\\n"
 		"'%s' using 1:3:3 with labels notitle\n",
-		file, test->func->name, file,
-		file, test->func->name, file);
+		file, test->func->name, test->integral, file,
+		file, test->func->name, test->integral_es, file);
 
 	fputs(plotfmt, f);
 	fputs("\n# vim: syntax=gnuplot", f);
