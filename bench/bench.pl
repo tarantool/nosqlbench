@@ -51,7 +51,7 @@ sub runas {
 	my $dump = $_[1];
 	$cmd = "$_[2]";
 	if ($silent) {
-		$cmd .= " &> /dev/null";
+		$cmd .= " 1>/dev/null 2>&1";
 	}
 	if ($dump) {
 		notify($_[2]);
@@ -106,7 +106,7 @@ sub server_stop {
 	chomp($pid);
 	kill 15, $pid;
 	while (1) {
-		system("pgrep -f $TNT_BIN &> /dev/null") == 0 or next;
+		system("pgrep -f $TNT_BIN &1>/dev/null 2>&1") == 0 or next;
 		last;
 	}
 }
