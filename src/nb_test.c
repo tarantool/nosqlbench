@@ -106,7 +106,7 @@ nb_test_buf_list(struct nb_test *test)
 int
 nb_test_buf_max(struct nb_test *test)
 {
-	uint32_t max;
+	uint32_t max = 0;
 	if (test->count)
 		max = STAILQ_FIRST(&test->list)->buf;
 	struct nb_test_buf *b;
@@ -120,7 +120,7 @@ nb_test_buf_max(struct nb_test *test)
 int
 nb_test_buf_min(struct nb_test *test)
 {
-	uint32_t min;
+	uint32_t min = UINT32_MAX;
 	if (test->count)
 		min = STAILQ_FIRST(&test->list)->buf;
 	struct nb_test_buf *b;
