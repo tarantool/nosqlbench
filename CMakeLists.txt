@@ -28,7 +28,7 @@ endif()
 
 ## cflags
 ##
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread -g -O0 -std=gnu99 -pedantic -Wall -Wextra")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread -O3 -std=gnu99 -pedantic -Wall -Wextra")
 
 include_directories("${PROJECT_SOURCE_DIR}/src")
 include_directories("${LIBTNT_HEADER_DIR}")

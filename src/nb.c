@@ -352,6 +352,11 @@ nb_run(struct nb *bench)
 
 		/* calculating plot integral */
 		nb_test_integrate(t);
+		printf("  [sum] %.2f rps ", t->integral);
+		if (bench->opt->esync)
+			printf(" (%.2f rps)", t->integral_es);
+		printf("\n");
+		fflush(stdout);
 	}
 
 	/* finalizing threads */
