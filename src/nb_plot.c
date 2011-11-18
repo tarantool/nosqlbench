@@ -35,6 +35,7 @@
 
 #include <tnt.h>
 
+#include <nb_queue.h>
 #include <nb_stat.h>
 #include <nb_func.h>
 #include <nb_test.h>

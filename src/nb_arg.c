@@ -28,8 +28,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <tnt.h>
-
 #include <nb_arg.h>
 
 void

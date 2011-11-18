@@ -29,14 +29,12 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <tnt.h>
-
+#include <nb_queue.h>
 #include <nb_opt.h>
 
 void
 nb_opt_init(struct nb_opt *opt)
 {
-	opt->proto = TNT_PROTO_RW;
 	opt->host = "localhost";
 	opt->port = 33013;
 	opt->threads = 1;

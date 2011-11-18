@@ -33,49 +33,53 @@
 #include <sys/uio.h>
 
 #include <tnt.h>
+#include <tnt_net.h>
+#include <tnt_io.h>
 
+#include <nb_queue.h>
 #include <nb_stat.h>
 #include <nb_func.h>
 #include <nb_cb.h>
 #include <nb_raw.h>
 
-int tnt_leb128_read(char *buf, int size, uint32_t *value);
-void tnt_leb128_write(char *buf, uint32_t value);
-int tnt_leb128_size(uint32_t value);
+struct tnt_header_insert {
+	uint32_t ns;
+	uint32_t flags;
+};
 
 int
-nb_raw_insert(struct tnt *t, char *key, char *data, int data_size)
+nb_raw_insert(struct tnt_stream *t, char *key, char *data, int data_size)
 {
 	int key_size = strlen(key) + 1;
 	uint32_t cardinality = 2;
 
 	char key_leb[6];
-	int key_leb_size = tnt_leb128_size(key_size);
-	tnt_leb128_write(key_leb, key_size);
+	int key_leb_size = tnt_enc_size(key_size);
+	tnt_enc_write(key_leb, key_size);
 
 	char data_leb[6];
-	int data_leb_size = tnt_leb128_size(data_size);
-	tnt_leb128_write(data_leb, data_size);
+	int data_leb_size = tnt_enc_size(data_size);
+	tnt_enc_write(data_leb, data_size);
 
-	struct tnt_proto_header hdr;
-	hdr.type  = TNT_PROTO_TYPE_INSERT;
+	struct tnt_header hdr;
+	hdr.type  = TNT_OP_INSERT;
 	hdr.reqid = 0;
-	hdr.len   = sizeof(struct tnt_proto_insert) +
+	hdr.len   = sizeof(struct tnt_header_insert) +
 			4 + 
 			key_leb_size +
 			key_size +
 			data_leb_size +
 			data_size;
 
-	struct tnt_proto_insert hdr_insert;
+	struct tnt_header_insert hdr_insert;
 	hdr_insert.ns = 0;
 	hdr_insert.flags = 0;
 
 	struct iovec v[7];
 	v[0].iov_base = &hdr;
-	v[0].iov_len  = sizeof(struct tnt_proto_header);
+	v[0].iov_len  = sizeof(struct tnt_header);
 	v[1].iov_base = &hdr_insert;
-	v[1].iov_len  = sizeof(struct tnt_proto_insert);
+	v[1].iov_len  = sizeof(struct tnt_header_insert);
 	v[2].iov_base = &cardinality;
 	v[2].iov_len  = sizeof(cardinality);
 	v[3].iov_base = key_leb;
@@ -86,31 +90,24 @@ nb_raw_insert(struct tnt *t, char *key, char *data, int data_size)
 	v[5].iov_len  = data_leb_size;
 	v[6].iov_base = data;
 	v[6].iov_len  = data_size;
-	int r = tnt_io_sendv(t, v, 7);
-	if (r < 0) {
-		t->error = TNT_ESYSTEM;
+	int r = tnt_io_sendv(TNT_SNET_CAST(t), v, 7);
+	if (r < 0)
 		return -1;
-	}
-
 	return 0;
 }
 
 int
-nb_raw_insert_recv(struct tnt *t)
+nb_raw_insert_recv(struct tnt_stream *t)
 {
-	char buffer[sizeof(struct tnt_proto_header_resp) + 4];
-	struct tnt_proto_header_resp *hdr =
-		(struct tnt_proto_header_resp*)buffer;
-	t->error = tnt_io_recv(t, buffer, sizeof(struct tnt_proto_header_resp));
-	if (t->error != TNT_EOK)
+	struct tnt_stream_net *s = TNT_SNET_CAST(t);
+	char buffer[sizeof(struct tnt_header) + 4 /* code */ + 4 /* count */];
+	if (tnt_io_recv(s, buffer, sizeof(struct tnt_header) + 4) == -1)
 		return -1;
-	if (!TNT_PROTO_IS_OK(hdr->code))
+	uint32_t code = *(uint32_t*)(buffer + sizeof(struct tnt_header));
+	if (code != 0)
 		return -1;
-	t->error = tnt_io_recv(t, buffer +
-		sizeof(struct tnt_proto_header_resp), 4);
-	if (t->error != TNT_EOK)
+	if (tnt_io_recv(s, buffer + sizeof(struct tnt_header) + 4, 4) == -1)
 		return -1;
-	int count =  *(uint32_t*)(buffer +
-		sizeof(struct tnt_proto_header_resp));
+	uint32_t count = *(uint32_t*)(buffer + sizeof(struct tnt_header) + 4);
 	return (count == 1) ? 0 : -1;
 }

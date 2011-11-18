@@ -27,322 +27,256 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <inttypes.h>
 
 #include <tnt.h>
+#include <tnt_net.h>
 
+#include <nb_queue.h>
 #include <nb_stat.h>
 #include <nb_func.h>
 #include <nb_cb.h>
-#include <nb_redis.h>
+//#include <nb_redis.h>
 #include <nb_raw.h>
 
-static void
-nb_cb_error(struct tnt *t, char *name)
-{
-	printf("%s failed: %s\n", name, tnt_strerror(t));
+static void nb_cb_error(struct nb_func_arg *a, char *name) {
+	printf("%s failed: %s\n", name, tnt_strerror(a->t));
 }
 
-static void
-nb_cb_recv(struct tnt *t, int count)
-{
-	int key;
-	for (key = 0 ; key < count ; key++) {
-		struct tnt_recv rcv; 
-		tnt_recv_init(&rcv);
-		if (tnt_recv(t, &rcv) == -1)
-			nb_cb_error(t, "recv");
-		else {
-			if (tnt_error(t) != TNT_EOK)
-				printf("server respond: %s (op: %d, reqid: %d, code: %d, count: %d)\n",
-					tnt_strerror(t), TNT_RECV_OP(&rcv),
-					TNT_RECV_ID(&rcv),
-					TNT_RECV_CODE(&rcv),
-					TNT_RECV_COUNT(&rcv));
-		}
-		tnt_recv_free(&rcv);
+static void nb_cb_recv(struct nb_func_arg *a) {
+	struct tnt_iter i;
+	tnt_iter_stream(&i, a->t);
+	while (tnt_next(&i)) {
+		struct tnt_reply *r = TNT_ISTREAM_REPLY(&i);
+		if (tnt_error(a->t) != TNT_EOK)
+			printf("server respond: %s (op: %"PRIu32", reqid: %"PRIu32", "
+			       "code: %"PRIu32", count: %"PRIu32")\n",
+				tnt_strerror(a->t),
+				r->op,
+				r->reqid,
+				r->code,
+				r->count);
 	}
+	if (i.status == TNT_ITER_FAIL)
+		printf("recv failed: %s\n", tnt_strerror(a->t));
+	tnt_iter_free(&i);
 }
 
 static void
-nb_cb_insert_do(struct tnt *t, int tid, char *name, int bsize, int count, int flags,
-		struct nb_stat *stat)
-{
-	char *buf = malloc(bsize);
+nb_cb_insert_do(struct nb_func_arg *a, uint32_t flags) {
+	char *buf = malloc(a->bsize);
 	if (buf == NULL) {
-		printf("memory allocation of %d bytes failed\n", bsize);
+		printf("memory allocation of %d bytes failed\n", a->bsize);
 		return;
 	}
-	memset(buf, 'x', bsize);
-
-	nb_stat_start(stat, count);
-
+	memset(buf, 'x', a->bsize);
+	nb_stat_start(a->stat, a->count);
 	int i;
-	for (i = 0 ; i < count ; i++) {
+	for (i = 0 ; i < a->count ; i++) {
 		char key[32];
-		int key_len = snprintf(key, sizeof(key), "key_%d_%d_%d", tid, bsize, i);
+		int key_len = snprintf(key, sizeof(key), "key_%d_%d_%d", a->tid, a->bsize, i);
 		struct tnt_tuple tu;
 		tnt_tuple_init(&tu);
 		tnt_tuple_add(&tu, key, key_len);
-		tnt_tuple_add(&tu, buf, bsize);
-		if (tnt_insert(t, i, 0, flags, &tu) == -1)
-			nb_cb_error(t, name);
+		tnt_tuple_add(&tu, buf, a->bsize);
+		if (tnt_insert(a->t, 0, flags, &tu) == -1)
+			nb_cb_error(a, "insert");
 		tnt_tuple_free(&tu);
 	}
-
-	tnt_flush(t);
-	nb_cb_recv(t, count);
-	nb_stat_stop(stat);
-
+	tnt_flush(a->t);
+	nb_cb_recv(a);
+	nb_stat_stop(a->stat);
 	free(buf);
 }
 
 static void
-nb_cb_insert_do_sync(struct tnt *t, int tid, char *name, int bsize, int count,
-		     int flags, struct nb_stat *stat)
-{
-	char *buf = malloc(bsize);
+nb_cb_insert_do_sync(struct nb_func_arg *a, uint32_t flags) {
+	char *buf = malloc(a->bsize);
 	if (buf == NULL) {
-		printf("memory allocation of %d bytes failed\n", bsize);
+		printf("memory allocation of %d bytes failed\n", a->bsize);
 		return;
 	}
-	memset(buf, 'x', bsize);
-
-	nb_stat_start(stat, count);
-
+	memset(buf, 'x', a->bsize);
+	nb_stat_start(a->stat, a->count);
 	int i;
-	for (i = 0 ; i < count ; i++) {
+	for (i = 0 ; i < a->count ; i++) {
 		char key[32];
-		int key_len = snprintf(key, sizeof(key), "key_%d_%d_%d", tid, bsize, i);
+		int key_len = snprintf(key, sizeof(key), "key_%d_%d_%d", a->tid, a->bsize, i);
 		struct tnt_tuple tu;
 		tnt_tuple_init(&tu);
 		tnt_tuple_add(&tu, key, key_len);
-		tnt_tuple_add(&tu, buf, bsize);
-		if (tnt_insert(t, i, 0, flags, &tu) == -1)
-			nb_cb_error(t, name);
-		tnt_flush(t);
+		tnt_tuple_add(&tu, buf, a->bsize);
+		if (tnt_insert(a->t, 0, flags, &tu) == -1)
+			nb_cb_error(a, "insert sync");
+		tnt_flush(a->t);
 		tnt_tuple_free(&tu);
-
-		nb_cb_recv(t, 1);
+		nb_cb_recv(a);
 	}
-
-	nb_stat_stop(stat);
+	nb_stat_stop(a->stat);
 	free(buf);
 }
 
-static void
-nb_cb_insert(struct tnt *t, int tid, int bsize, int count,
-             struct nb_stat *stat)
-{
-	nb_cb_insert_do(t, tid, "insert", bsize, count, 0, stat);
+static void nb_cb_insert(struct nb_func_arg *a) {
+	nb_cb_insert_do(a, 0);
 }
 
-static void
-nb_cb_insert_ret(struct tnt *t, int tid, int bsize, int count,
-		 struct nb_stat *stat)
-{
-	nb_cb_insert_do(t, tid, "insert-ret",
-		bsize, count, TNT_PROTO_FLAG_RETURN, stat);
+static void nb_cb_insert_ret(struct nb_func_arg *a) {
+	nb_cb_insert_do(a, TNT_FLAG_RETURN);
 }
 
-static void
-nb_cb_insert_sync(struct tnt *t, int tid, int bsize, int count,
-		  struct nb_stat *stat)
-{
-	nb_cb_insert_do_sync(t, tid, "sync-insert",
-		bsize, count, 0, stat);
+static void nb_cb_insert_sync(struct nb_func_arg *a) {
+	nb_cb_insert_do_sync(a, 0);
 }
 
-static void
-nb_cb_insert_ret_sync(struct tnt *t, int tid, int bsize, int count,
-		      struct nb_stat *stat)
-{
-	nb_cb_insert_do_sync(t, tid, "sync-insert-ret",
-		bsize, count, TNT_PROTO_FLAG_RETURN, stat);
+static void nb_cb_insert_ret_sync(struct nb_func_arg *a) {
+	nb_cb_insert_do_sync(a, TNT_FLAG_RETURN);
 }
 
-static void
-nb_cb_update_do(struct tnt *t, int tid, char *name, int bsize, int count,
-		int flags, struct nb_stat *stat)
-{
-	char *buf = malloc(bsize);
+static void nb_cb_update_do(struct nb_func_arg *a, uint32_t flags) {
+	char *buf = malloc(a->bsize);
 	if (buf == NULL) {
-		printf("memory allocation of %d bytes failed\n", bsize);
+		printf("memory allocation of %d bytes failed\n", a->bsize);
 		return;
 	}
-	memset(buf, 'x', bsize);
-
-	nb_stat_start(stat, count);
-
+	memset(buf, 'x', a->bsize);
+	nb_stat_start(a->stat, a->count);
 	int i;
-	for (i = 0 ; i < count ; i++) {
+	for (i = 0 ; i < a->count ; i++) {
 		char key[32];
-		int key_len = snprintf(key, sizeof(key), "key_%d_%d_%d", tid, bsize, i);
-		struct tnt_update u;
-		tnt_update_init(&u);
-		tnt_update_assign(&u, 1, buf, bsize);
-		if (tnt_update(t, i, 0, flags, key, key_len, &u) == -1)
-			nb_cb_error(t, name);
-		tnt_update_free(&u);
+		int key_len = snprintf(key, sizeof(key), "key_%d_%d_%d", a->tid, a->bsize, i);
+		struct tnt_tuple tu;
+		tnt_tuple_init(&tu);
+		tnt_tuple_add(&tu, key, key_len);
+		struct tnt_stream u;
+		tnt_buf(&u);
+		tnt_update_assign(&u, 1, buf, a->bsize);
+		if (tnt_update(a->t, 0, flags, &tu, &u) == -1)
+			nb_cb_error(a, "update");
+		tnt_stream_free(&u);
+		tnt_tuple_free(&tu);
 	}
-
-	tnt_flush(t);
-	nb_cb_recv(t, count);
-	nb_stat_stop(stat);
-
+	tnt_flush(a->t);
+	nb_cb_recv(a);
+	nb_stat_stop(a->stat);
 	free(buf);
 }
-static void
-nb_cb_update_do_sync(struct tnt *t, int tid, char *name, int bsize, int count, int flags,
-		     struct nb_stat *stat)
-{
-	char *buf = malloc(bsize);
+
+static void nb_cb_update_do_sync(struct nb_func_arg *a, uint32_t flags) {
+	char *buf = malloc(a->bsize);
 	if (buf == NULL) {
-		printf("memory allocation of %d bytes failed\n", bsize);
+		printf("memory allocation of %d bytes failed\n", a->bsize);
 		return;
 	}
-	memset(buf, 'x', bsize);
-
-	nb_stat_start(stat, count);
-
+	memset(buf, 'x', a->bsize);
+	nb_stat_start(a->stat, a->count);
 	int i;
-	for (i = 0 ; i < count ; i++) {
+	for (i = 0 ; i < a->count ; i++) {
 		char key[32];
-		int key_len = snprintf(key, sizeof(key), "key_%d_%d_%d", tid, bsize, i);
-		struct tnt_update u;
-		tnt_update_init(&u);
-		tnt_update_assign(&u, 1, buf, bsize);
-		if (tnt_update(t, i, 0, flags, key, key_len, &u) == -1)
-			nb_cb_error(t, name);
-		tnt_flush(t);
-		tnt_update_free(&u);
-
-		nb_cb_recv(t, 1);
+		int key_len = snprintf(key, sizeof(key), "key_%d_%d_%d", a->tid, a->bsize, i);
+		struct tnt_tuple tu;
+		tnt_tuple_init(&tu);
+		tnt_tuple_add(&tu, key, key_len);
+		struct tnt_stream u;
+		tnt_buf(&u);
+		tnt_update_assign(&u, 1, buf, a->bsize);
+		if (tnt_update(a->t, 0, flags, &tu, &u) == -1)
+			nb_cb_error(a, "update sync");
+		tnt_flush(a->t);
+		tnt_stream_free(&u);
+		tnt_tuple_free(&tu);
+		nb_cb_recv(a);
 	}
-
-	nb_stat_stop(stat);
+	nb_stat_stop(a->stat);
 	free(buf);
 }
 
-static void
-nb_cb_update(struct tnt *t, int tid, int bsize, int count,
-	     struct nb_stat *stat)
-{
-	nb_cb_update_do(t, tid, "update", bsize, count, 0, stat);
+static void nb_cb_update(struct nb_func_arg *a) {
+	nb_cb_update_do(a, 0);
 }
 
-static void
-nb_cb_update_ret(struct tnt *t, int tid, int bsize, int count,
-		 struct nb_stat *stat)
-{
-	nb_cb_update_do(t, tid, "update-ret",
-		bsize, count, TNT_PROTO_FLAG_RETURN, stat);
+static void nb_cb_update_ret(struct nb_func_arg *a) {
+	nb_cb_update_do(a, TNT_FLAG_RETURN);
 }
 
-static void
-nb_cb_update_sync(struct tnt *t, int tid, int bsize, int count,
-		  struct nb_stat *stat)
-{
-	nb_cb_update_do_sync(t, tid, "sync-update",
-		bsize, count, 0, stat);
+static void nb_cb_update_sync(struct nb_func_arg *a) {
+	nb_cb_update_do_sync(a, 0);
 }
 
-static void
-nb_cb_update_ret_sync(struct tnt *t, int tid, int bsize, int count,
-		      struct nb_stat *stat)
-{
-	nb_cb_update_do_sync(t, tid, "sync-update-ret",
-		bsize, count, TNT_PROTO_FLAG_RETURN, stat);
+static void nb_cb_update_ret_sync(struct nb_func_arg *a) {
+	nb_cb_update_do_sync(a, TNT_FLAG_RETURN);
 }
 
-static void
-nb_cb_select(struct tnt *t, int tid, int bsize, int count,
-	     struct nb_stat *stat)
-{
-	nb_stat_start(stat, count);
-
+static void nb_cb_select(struct nb_func_arg *a) {
+	nb_stat_start(a->stat, a->count);
 	int i;
-	for (i = 0 ; i < count ; i++) {
+	for (i = 0 ; i < a->count ; i++) {
 		char key[32];
-		int key_len = snprintf(key, sizeof(key), "key_%d_%d_%d", tid, bsize, i);
-		struct tnt_tuples tuples;
-		tnt_tuples_init(&tuples);
-		struct tnt_tuple * tu = tnt_tuples_add(&tuples);
-		tnt_tuple_init(tu);
-		tnt_tuple_add(tu, key, key_len);
-		if (tnt_select(t, i, 0, 0, 0, 100, &tuples) == -1)
-			nb_cb_error(t, "select");
-		tnt_tuples_free(&tuples);
+		int key_len = snprintf(key, sizeof(key), "key_%d_%d_%d", a->tid, a->bsize, i);
+		struct tnt_tuple tu;
+		tnt_tuple_init(&tu);
+		tnt_tuple_add(&tu, key, key_len);
+		struct tnt_list l;
+		memset(&l, 0, sizeof(l));
+		tnt_list_at(&l, &tu);
+		if (tnt_select(a->t, 0, 0, 0, 100, &l) == -1)
+			nb_cb_error(a, "select");
+		tnt_list_free(&l);
+		tnt_tuple_free(&tu);
 	}
-
-	tnt_flush(t);
-	nb_cb_recv(t, count);
-	nb_stat_stop(stat);
+	tnt_flush(a->t);
+	nb_cb_recv(a);
+	nb_stat_stop(a->stat);
 }
 
-static void
-nb_cb_select_sync(struct tnt *t, int tid, int bsize, int count,
-		  struct nb_stat *stat)
-{
-	nb_stat_start(stat, count);
-
+static void nb_cb_select_sync(struct nb_func_arg *a) {
+	nb_stat_start(a->stat, a->count);
 	int i;
-	for (i = 0 ; i < count ; i++) {
+	for (i = 0 ; i < a->count ; i++) {
 		char key[32];
-		int key_len = snprintf(key, sizeof(key), "key_%d_%d_%d", tid, bsize, i);
-		struct tnt_tuples tuples;
-		tnt_tuples_init(&tuples);
-		struct tnt_tuple * tu = tnt_tuples_add(&tuples);
-		tnt_tuple_init(tu);
-		tnt_tuple_add(tu, key, key_len);
-		if (tnt_select(t, i, 0, 0, 0, 100, &tuples) == -1)
-			nb_cb_error(t, "sync-select");
-		tnt_flush(t);
-		tnt_tuples_free(&tuples);
-
-		nb_cb_recv(t, 1);
+		int key_len = snprintf(key, sizeof(key), "key_%d_%d_%d", a->tid, a->bsize, i);
+		struct tnt_tuple tu;
+		tnt_tuple_init(&tu);
+		tnt_tuple_add(&tu, key, key_len);
+		struct tnt_list l;
+		memset(&l, 0, sizeof(l));
+		tnt_list_at(&l, &tu);
+		if (tnt_select(a->t, 0, 0, 0, 100, &l) == -1)
+			nb_cb_error(a, "select");
+		tnt_list_free(&l);
+		tnt_tuple_free(&tu);
+		tnt_flush(a->t);
+		nb_cb_recv(a);
 	}
-
-	nb_stat_stop(stat);
+	nb_stat_stop(a->stat);
 }
 
-static void
-nb_cb_ping(struct tnt *t, int tid __attribute__((unused)),
-	   int bsize __attribute__((unused)), int count,
-           struct nb_stat *stat)
-{
-	nb_stat_start(stat, count);
-
+static void nb_cb_ping(struct nb_func_arg *a) {
+	nb_stat_start(a->stat, a->count);
 	int i;
-	for (i = 0 ; i < count ; i++) {
-		if (tnt_ping(t, i) == -1)
-			nb_cb_error(t, "ping");
+	for (i = 0 ; i < a->count ; i++) {
+		if (tnt_ping(a->t) == -1)
+			nb_cb_error(a, "ping");
 	}
-
-	tnt_flush(t);
-	nb_cb_recv(t, count);
-	nb_stat_stop(stat);
+	tnt_flush(a->t);
+	nb_cb_recv(a);
+	nb_stat_stop(a->stat);
 }
 
-static void
-nb_cb_ping_sync(struct tnt *t, int tid __attribute__((unused)),
-		int bsize __attribute__((unused)), int count,
-		struct nb_stat *stat)
-{
-	nb_stat_start(stat, count);
-
+static void nb_cb_ping_sync(struct nb_func_arg *a) {
+	nb_stat_start(a->stat, a->count);
 	int i;
-	for (i = 0 ; i < count ; i++) {
-		if (tnt_ping(t, i) == -1)
-			nb_cb_error(t, "sync-ping");
-		tnt_flush(t);
-		nb_cb_recv(t, 1);
+	for (i = 0 ; i < a->count ; i++) {
+		if (tnt_ping(a->t) == -1)
+			nb_cb_error(a, "ping");
+		tnt_flush(a->t);
+		nb_cb_recv(a);
 	}
-
-	nb_stat_stop(stat);
+	nb_stat_stop(a->stat);
 }
 
+#if 0
 static void
-nb_cb_memcache_set(struct tnt *t, int tid, int bsize, int count,
+nb_cb_memcache_set(struct tnt_stream *t, int tid, int bsize, int count,
 		   struct nb_stat *stat)
 {
 	char *buf = malloc(bsize);
@@ -367,7 +301,7 @@ nb_cb_memcache_set(struct tnt *t, int tid, int bsize, int count,
 }
 
 static void
-nb_cb_memcache_get(struct tnt *t, int tid, int bsize, int count,
+nb_cb_memcache_get(struct tnt_stream *t, int tid, int bsize, int count,
 		   struct nb_stat *stat)
 {
 	nb_stat_start(stat, count);
@@ -392,7 +326,7 @@ nb_cb_memcache_get(struct tnt *t, int tid, int bsize, int count,
 }
 
 static void
-nb_cb_redis_set_recv(struct tnt *t, int count)
+nb_cb_redis_set_recv(struct tnt_stream *t, int count)
 {
 	int key;
 	for (key = 0 ; key < count ; key++) {
@@ -406,7 +340,7 @@ nb_cb_redis_set_recv(struct tnt *t, int count)
 }
 
 static void
-nb_cb_redis_set(struct tnt *t, int tid, int bsize, int count,
+nb_cb_redis_set(struct tnt_stream *t, int tid, int bsize, int count,
 		    struct nb_stat *stat)
 {
 	char *buf = malloc(bsize);
@@ -434,7 +368,7 @@ nb_cb_redis_set(struct tnt *t, int tid, int bsize, int count,
 }
 
 static void
-nb_cb_redis_set_sync(struct tnt *t, int tid, int bsize, int count,
+nb_cb_redis_set_sync(struct tnt_stream *t, int tid, int bsize, int count,
 		     struct nb_stat *stat)
 {
 	char *buf = malloc(bsize);
@@ -461,7 +395,7 @@ nb_cb_redis_set_sync(struct tnt *t, int tid, int bsize, int count,
 }
 
 static void
-nb_cb_redis_get_recv(struct tnt *t, int count)
+nb_cb_redis_get_recv(struct tnt_stream *t, int count)
 {
 	int key;
 	for (key = 0 ; key < count ; key++) {
@@ -478,7 +412,7 @@ nb_cb_redis_get_recv(struct tnt *t, int count)
 }
 
 static void
-nb_cb_redis_get(struct tnt *t, int tid, int bsize, int count,
+nb_cb_redis_get(struct tnt_stream *t, int tid, int bsize, int count,
 		struct nb_stat *stat)
 {
 	nb_stat_start(stat, count);
@@ -497,7 +431,7 @@ nb_cb_redis_get(struct tnt *t, int tid, int bsize, int count,
 }
 
 static void
-nb_cb_redis_get_sync(struct tnt *t, int tid, int bsize, int count,
+nb_cb_redis_get_sync(struct tnt_stream *t, int tid, int bsize, int count,
 		     struct nb_stat *stat)
 {
 	nb_stat_start(stat, count);
@@ -514,46 +448,40 @@ nb_cb_redis_get_sync(struct tnt *t, int tid, int bsize, int count,
 
 	nb_stat_stop(stat);
 }
+#endif
 
 static void
-nb_cb_raw_insert_recv(struct tnt *t, int count)
+nb_cb_raw_insert_recv(struct nb_func_arg *a)
 {
 	int key;
-	for (key = 0 ; key < count ; key++) {
-		if (nb_raw_insert_recv(t) == -1)
-			nb_cb_error(t, "recv");
+	for (key = 0 ; key < a->count ; key++) {
+		if (nb_raw_insert_recv(a->t) == -1)
+			nb_cb_error(a, "recv");
 		else {
-			if (tnt_error(t) != TNT_EOK)
-				printf("server respond: %s\n", tnt_strerror(t));
+			if (tnt_error(a->t) != TNT_EOK)
+				printf("server respond: %s\n", tnt_strerror(a->t));
 		}
 	}
 }
 
-static void
-nb_cb_raw_insert(struct tnt *t, int tid, int bsize, int count,
-		 struct nb_stat *stat)
-{
-	char *buf = malloc(bsize);
+static void nb_cb_raw_insert(struct nb_func_arg *a) {
+	char *buf = malloc(a->bsize);
 	if (buf == NULL) {
-		printf("memory allocation of %d bytes failed\n", bsize);
+		printf("memory allocation of %d bytes failed\n", a->bsize);
 		return;
 	}
-	memset(buf, 'x', bsize);
-
-	nb_stat_start(stat, count);
-
+	memset(buf, 'x', a->bsize);
+	nb_stat_start(a->stat, a->count);
 	int i;
-	for (i = 0 ; i < count ; i++) {
+	for (i = 0 ; i < a->count ; i++) {
 		char key[32];
-		snprintf(key, sizeof(key), "key_%d_%d_%d", tid, bsize, i);
-		if (nb_raw_insert(t, key, buf, bsize) == -1)
-			nb_cb_error(t, "insert");
+		snprintf(key, sizeof(key), "key_%d_%d_%d", a->tid, a->bsize, i);
+		if (nb_raw_insert(a->t, key, buf, a->bsize) == -1)
+			nb_cb_error(a, "insert");
 	}
-
-	tnt_flush(t);
-	nb_cb_raw_insert_recv(t, count);
-	nb_stat_stop(stat);
-
+	tnt_flush(a->t);
+	nb_cb_raw_insert_recv(a);
+	nb_stat_stop(a->stat);
 	free(buf);
 }
 
@@ -576,11 +504,14 @@ nb_cb_init(struct nb_funcs *funcs)
 
 	nb_func_add(funcs, "tnt-raw-insert", nb_cb_raw_insert);
 
+	/* TODO Make me! */
+
+	/*
 	nb_func_add(funcs, "memcache-set", nb_cb_memcache_set);
 	nb_func_add(funcs, "memcache-get", nb_cb_memcache_get);
-
 	nb_func_add(funcs, "redis-set", nb_cb_redis_set);
 	nb_func_add(funcs, "redis-get", nb_cb_redis_get);
 	nb_func_add(funcs, "redis-set-sync", nb_cb_redis_set_sync);
 	nb_func_add(funcs, "redis-get-sync", nb_cb_redis_get_sync);
+	*/
 }

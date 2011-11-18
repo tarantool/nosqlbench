@@ -48,7 +48,6 @@ struct nb_opt {
 	char *host;
 	uint32_t port;
 	uint32_t threads;
-	enum tnt_proto proto;
 	uint32_t rbuf;
 	uint32_t sbuf;
 	uint32_t count;

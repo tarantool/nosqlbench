@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  */
 
-int nb_raw_insert(struct tnt *t, char *key, char *data, int data_size);
-int nb_raw_insert_recv(struct tnt *t);
+int nb_raw_insert(struct tnt_stream *t, char *key, char *data, int data_size);
+int nb_raw_insert_recv(struct tnt_stream *t);
 
 #endif /* NB_RAW_H_INCLUDED */

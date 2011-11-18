@@ -31,6 +31,7 @@
 
 #include <tnt.h>
 
+#include <nb_queue.h>
 #include <nb_arg.h>
 #include <nb_stat.h>
 #include <nb_func.h>

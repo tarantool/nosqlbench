@@ -35,10 +35,6 @@ enum {
 	NB_ARG_THREADS,
 	NB_ARG_BUF_RECV,
 	NB_ARG_BUF_SEND,
-	NB_ARG_AUTH_TYPE,
-	NB_ARG_AUTH_ID,
-	NB_ARG_AUTH_KEY,
-	NB_ARG_AUTH_MECH,
 	NB_ARG_TEST_STD,
 	NB_ARG_TEST_STD_MC,
 	NB_ARG_TEST,
@@ -60,8 +56,7 @@ enum {
 
 struct nb_arg_cmd {
 	char *name;
-	int argc;
-	int token;
+	int argc, token;
 };
 
 struct nb_arg {

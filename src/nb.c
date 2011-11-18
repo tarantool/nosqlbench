@@ -32,7 +32,9 @@
 #include <pthread.h>
 
 #include <tnt.h>
+#include <tnt_net.h>
 
+#include <nb_queue.h>
 #include <nb_stat.h>
 #include <nb_func.h>
 #include <nb_test.h>
@@ -202,40 +204,38 @@ static pthread_barrier_t barrier;
 static void*
 nb_cb(struct nb_thread *t)
 {
-	struct tnt *tnt = tnt_alloc();
-	if (tnt == NULL) {
-		printf("tnt_alloc() failed\n");
+	struct tnt_stream tnt;
+	if (tnt_net(&tnt) == NULL) {
+		printf("tnt_stream_net() failed\n");
+		return NULL;
+	}
+	tnt_set(&tnt, TNT_OPT_HOSTNAME, t->nb->opt->host);
+	tnt_set(&tnt, TNT_OPT_PORT, t->nb->opt->port);
+	tnt_set(&tnt, TNT_OPT_SEND_BUF, t->nb->opt->sbuf);
+	tnt_set(&tnt, TNT_OPT_RECV_BUF, t->nb->opt->rbuf);
+	if (tnt_init(&tnt) == -1) {
+		tnt_stream_free(&tnt);
 		return NULL;
 	}
 
-	tnt_set(tnt, TNT_OPT_PROTO, t->nb->opt->proto);
-	tnt_set(tnt, TNT_OPT_HOSTNAME, t->nb->opt->host);
-	tnt_set(tnt, TNT_OPT_PORT, t->nb->opt->port);
-	tnt_set(tnt, TNT_OPT_SEND_BUF, t->nb->opt->sbuf);
-	tnt_set(tnt, TNT_OPT_RECV_BUF, t->nb->opt->rbuf);
-	tnt_set(tnt, TNT_OPT_TMOUT_CONNECT, 8);
-	if (tnt_init(tnt) == -1)
-		return NULL;
-
-	if (tnt_connect(tnt) == -1) {
-		printf("tnt_connect() failed: %s\n", tnt_strerror(tnt));
-		tnt_free(tnt);
+	if (tnt_connect(&tnt) == -1) {
+		printf("tnt_connect() failed: %s\n", tnt_strerror(&tnt));
+		tnt_stream_free(&tnt);
 		return NULL;
 	}
-
 	while (1) {
 		/* waiting for ready */
 		pthread_barrier_wait(&barrier);
 		if (!run)
 			break;
 		/* calling test */
-		t->test->func->func(tnt, t->idx, t->buf->buf, t->nb->opt->per,
-				    &t->stat);
+		struct nb_func_arg a = { &tnt, t->idx, t->buf->buf, t->nb->opt->per,
+			                 &t->stat };
+		t->test->func->func(&a);
 		/* waiting test to finish */
 		pthread_barrier_wait(&barrier);
 	}
-
-	tnt_free(tnt);
+	tnt_stream_free(&tnt);
 	return NULL;
 }
 

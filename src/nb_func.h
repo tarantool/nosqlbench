@@ -28,10 +28,17 @@
 
 struct nb_stat;
 
+struct nb_func_arg {
+	struct tnt_stream *t;
+	int tid;
+	int bsize;
+	int count;
+	struct nb_stat *stat;
+};
+
 struct nb_func {
 	char *name;
-	void (*func)(struct tnt *t, int tid, int bsize, int count,
-	             struct nb_stat *stat);
+	void (*func)(struct nb_func_arg *a);
 	STAILQ_ENTRY(nb_func) next;
 };
 
@@ -46,8 +53,7 @@ void nb_func_free(struct nb_funcs *funcs);
 struct nb_func*
 nb_func_add(struct nb_funcs *funcs,
 	    char *name,
-	    void (*func)(struct tnt *t, int tid, int bsize, int count,
-			 struct nb_stat *stat));
+	    void (*func)(struct nb_func_arg *a));
 
 struct nb_func*
 nb_func_match(struct nb_funcs *funcs, char *name);

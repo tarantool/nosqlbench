@@ -1,7 +1,7 @@
 
-set(nb_bin  nb)
+set(nb_bin nb)
 
-set(nb_libs tnt m)
+set(nb_libs tntnet tnt m)
 set(nb_src
 	nb_arg.c
 	nb_stat.c
@@ -11,7 +11,7 @@ set(nb_src
 	nb_plot.c
 	nb_data.c
 	nb_cb.c
-	nb_redis.c
+#	nb_redis.c
 	nb_raw.c
 	nb_thread.c
 	nb.c

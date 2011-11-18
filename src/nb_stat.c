@@ -30,8 +30,6 @@
 
 #include <sys/time.h>
 
-#include <tnt.h>
-
 #include <nb_stat.h>
 
 static long long

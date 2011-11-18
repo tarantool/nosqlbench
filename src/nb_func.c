@@ -30,6 +30,7 @@
 
 #include <tnt.h>
 
+#include <nb_queue.h>
 #include <nb_func.h>
 
 void
@@ -52,8 +53,7 @@ nb_func_free(struct nb_funcs *funcs)
 struct nb_func*
 nb_func_add(struct nb_funcs *funcs,
 	    char *name,
-	    void (*func)(struct tnt *t, int tid, int bsize, int count,
-		         struct nb_stat *stat))
+	    void (*func)(struct nb_func_arg *a))
 {
 	struct nb_func *f =
 		malloc(sizeof(struct nb_func));
