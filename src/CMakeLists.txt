@@ -11,7 +11,9 @@ set(nb_src
 	nb_plot.c
 	nb_data.c
 	nb_cb.c
-#	nb_redis.c
+	nb_io.c
+	nb_redis.c
+	nb_mc.c
 	nb_raw.c
 	nb_thread.c
 	nb.c

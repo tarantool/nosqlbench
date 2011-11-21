@@ -1,5 +1,5 @@
-#ifndef NB_REDIS_H_INCLUDED
-#define NB_REDIS_H_INCLUDED
+#ifndef NB_MC_H_INCLUDED
+#define NB_MC_H_INCLUDED
 
 /*
  * Copyright (C) 2011 Mail.RU
@@ -26,10 +26,10 @@
  * SUCH DAMAGE.
  */
 
-int nb_redis_set(struct tnt_stream *t, char *key, char *data, int data_size);
-int nb_redis_set_recv(struct tnt_stream *t);
+int nb_mc_set(struct tnt_stream *t, char *key, char *data, int data_size);
+int nb_mc_set_recv(struct tnt_stream *t);
 
-int nb_redis_get(struct tnt_stream *t, char *key);
-int nb_redis_get_recv(struct tnt_stream *t, char **data, int *data_size);
+int nb_mc_get(struct tnt_stream *t, char *key);
+int nb_mc_get_recv(struct tnt_stream *t, char **data, int *data_size);
 
-#endif /* NB_REDIS_H_INCLUDED */
+#endif /* NB_MC_H_INCLUDED */

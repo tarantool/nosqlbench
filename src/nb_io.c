@@ -36,90 +36,24 @@
 #include <tnt_net.h>
 #include <tnt_io.h>
 
-#include <nb_queue.h>
-#include <nb_stat.h>
-#include <nb_func.h>
-#include <nb_cb.h>
 #include <nb_io.h>
-#include <nb_redis.h>
 
-int
-nb_redis_set(struct tnt_stream *t, char *key, char *data, int data_size)
-{
-	char buf[64];
-	int len = snprintf(buf, sizeof(buf), "SET %s \"", key);
-	struct iovec v[3];
-	v[0].iov_base = buf;
-	v[0].iov_len  = len;
-	v[1].iov_base = data;
-	v[1].iov_len  = data_size;
-	v[2].iov_base = "\"\r\n";
-	v[2].iov_len  = 3;
-	int r = tnt_io_sendv(TNT_SNET_CAST(t), v, 3);
-	return (r < 0) ? -1 : 0;
-}
-
-int
-nb_redis_set_recv(struct tnt_stream *t)
-{
-	return nb_io_expect(t, "+OK\r\n");
-}
-
-int
-nb_redis_get(struct tnt_stream *t, char *key)
-{
-	char buf[64];
-	int len = snprintf(buf, sizeof(buf), "GET %s\r\n", key);
-	struct iovec v[1];
-	v[0].iov_base = buf;
-	v[0].iov_len = len;
-	int r = tnt_io_sendv(TNT_SNET_CAST(t), v, 1);
-	return (r < 0) ? -1 : 0;
-}
-
-int
-nb_redis_get_recv(struct tnt_stream *t, char **data, int *data_size)
-{
+int nb_io_expect(struct tnt_stream *t, char *sz) {
 	struct tnt_stream_net *sn = TNT_SNET_CAST(t);
-	/*
-		GET mykey
-		$6\r\nfoobar\r\n
-	*/
-	if (nb_io_expect(t, "$") == -1)
+	char buf[256];
+	size_t len = strlen(sz);
+	if (len > sizeof(buf)) {
+		sn->error = TNT_EBIG;
 		return -1;
-	*data_size = 0;
-	char ch[1];
-	while (1) {
-		if (nb_io_getc(t, ch) == -1)
-			return -1;
-		if (!isdigit(ch[0])) {
-			if (ch[0] == '\r')
-				break;
-			sn->error = TNT_EFAIL;
-			return -1;
-		}
-		*data_size *= 10;
-		*data_size += ch[0] - 48;
 	}
+	if (tnt_io_recv(TNT_SNET_CAST(t), buf, len) == -1) 
+		return -1;
+	if (!memcmp(buf, sz, len))
+		return 0;
+	sn->error = TNT_EFAIL;
+	return -1;
+}
 
-	if (nb_io_getc(t, ch) == -1)
-		return -1;
-	if (ch[0] != '\n') {
-		sn->error = TNT_EFAIL;
-		return -1;
-	}
-	*data = tnt_mem_alloc(*data_size);
-	if (*data == NULL) {
-		sn->error = TNT_EFAIL;
-		return -1;
-	}
-	if (tnt_io_recv(sn, *data, *data_size) == -1) {
-		tnt_mem_free(*data);
-		return -1;
-	}
-	if (nb_io_expect(t, "\r\n") == -1) {
-		tnt_mem_free(*data);
-		return -1;
-	}
-	return 0;
+int nb_io_getc(struct tnt_stream *t, char buf[1]) {
+	return tnt_io_recv(TNT_SNET_CAST(t), buf, 1);
 }

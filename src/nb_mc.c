@@ -44,32 +44,33 @@
 #include <nb_redis.h>
 
 int
-nb_redis_set(struct tnt_stream *t, char *key, char *data, int data_size)
+nb_mc_set(struct tnt_stream *t, char *key, char *data, int data_size)
 {
 	char buf[64];
-	int len = snprintf(buf, sizeof(buf), "SET %s \"", key);
+	int len = snprintf(buf, sizeof(buf), "set %s 0 0 %d\r\n", key, data_size);
 	struct iovec v[3];
 	v[0].iov_base = buf;
 	v[0].iov_len  = len;
 	v[1].iov_base = data;
 	v[1].iov_len  = data_size;
-	v[2].iov_base = "\"\r\n";
-	v[2].iov_len  = 3;
+	v[2].iov_base = "\r\n";
+	v[2].iov_len  = 2;
 	int r = tnt_io_sendv(TNT_SNET_CAST(t), v, 3);
+	tnt_flush(t);
 	return (r < 0) ? -1 : 0;
 }
 
 int
-nb_redis_set_recv(struct tnt_stream *t)
+nb_mc_set_recv(struct tnt_stream *t)
 {
-	return nb_io_expect(t, "+OK\r\n");
+	return nb_io_expect(t, "STORED\r\n");
 }
 
 int
-nb_redis_get(struct tnt_stream *t, char *key)
+nb_mc_get(struct tnt_stream *t, char *key)
 {
 	char buf[64];
-	int len = snprintf(buf, sizeof(buf), "GET %s\r\n", key);
+	int len = snprintf(buf, sizeof(buf), "get %s\r\n", key);
 	struct iovec v[1];
 	v[0].iov_base = buf;
 	v[0].iov_len = len;
@@ -78,48 +79,80 @@ nb_redis_get(struct tnt_stream *t, char *key)
 }
 
 int
-nb_redis_get_recv(struct tnt_stream *t, char **data, int *data_size)
+nb_mc_get_recv(struct tnt_stream *t, char **data, int *data_size)
 {
 	struct tnt_stream_net *sn = TNT_SNET_CAST(t);
-	/*
-		GET mykey
-		$6\r\nfoobar\r\n
+	/* VALUE <key> <flags> <bytes> [<cas unique>]\r\n
+	 * <data block>\r\n
+	 * ...
+	 * END\r\n
 	*/
-	if (nb_io_expect(t, "$") == -1)
+	*data = NULL;
+	if (nb_io_expect(t, "VALUE ") == -1)
 		return -1;
-	*data_size = 0;
-	char ch[1];
+	/* key */
+	int key_len = 0;
+	char key[128], ch[1];
+	for (;; key_len++) {
+		if (key_len > (int)sizeof(key)) {
+			sn->error = TNT_EBIG;
+			goto error;
+		}
+		if (nb_io_getc(t, ch) == -1)
+			goto error;
+		if (ch[0] == ' ') {
+			key[key_len] = 0;
+			break;
+		}
+		key[key_len] = ch[0];
+	}
+	/* flags */
+	int flags = 0;
 	while (1) {
 		if (nb_io_getc(t, ch) == -1)
-			return -1;
+			goto error;
+		if (!isdigit(ch[0])) {
+			if (ch[0] == ' ')
+				break;
+			sn->error = TNT_EFAIL;
+			goto error;
+		}
+		flags *= 10;
+		flags += ch[0] - 48;
+	}
+	/* bytes */
+	int value_size = 0;
+	while (1) {
+		if (nb_io_getc(t, ch) == -1)
+			goto error;
 		if (!isdigit(ch[0])) {
 			if (ch[0] == '\r')
 				break;
 			sn->error = TNT_EFAIL;
-			return -1;
+			goto error;
 		}
-		*data_size *= 10;
-		*data_size += ch[0] - 48;
+		value_size *= 10;
+		value_size += ch[0] - 48;
 	}
-
+	/* \n */
 	if (nb_io_getc(t, ch) == -1)
-		return -1;
-	if (ch[0] != '\n') {
-		sn->error = TNT_EFAIL;
-		return -1;
-	}
+		goto error;
+	/* data */
+	*data_size = value_size;
 	*data = tnt_mem_alloc(*data_size);
 	if (*data == NULL) {
-		sn->error = TNT_EFAIL;
-		return -1;
+		sn->error = TNT_EMEMORY;
+		goto error;
 	}
-	if (tnt_io_recv(sn, *data, *data_size) == -1) {
-		tnt_mem_free(*data);
-		return -1;
-	}
-	if (nb_io_expect(t, "\r\n") == -1) {
-		tnt_mem_free(*data);
-		return -1;
-	}
+	if (tnt_io_recv(sn, *data, *data_size) == -1)
+		goto error;
+	if (nb_io_expect(t, "\r\n") == -1)
+		goto error;
+	if (nb_io_expect(t, "END\r\n") == -1)
+		goto error;
 	return 0;
+error:
+	if (*data)
+		tnt_mem_free(*data);
+	return -1;
 }
