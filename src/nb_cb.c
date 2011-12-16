@@ -54,14 +54,17 @@ static void nb_cb_recv(struct nb_func_arg *a) {
 	tnt_iter_stream(&i, a->t);
 	while (tnt_next(&i)) {
 		struct tnt_reply *r = TNT_ISTREAM_REPLY(&i);
-		if (tnt_error(a->t) != TNT_EOK)
+		if (tnt_error(a->t) != TNT_EOK) {
+			printf("error, %s\n", tnt_strerror(a->t));
+		} else if (r->code != 0) {
 			printf("server respond: %s (op: %"PRIu32", reqid: %"PRIu32", "
 			       "code: %"PRIu32", count: %"PRIu32")\n",
-				tnt_strerror(a->t),
+				(r->error) ? r->error : "",
 				r->op,
 				r->reqid,
 				r->code,
 				r->count);
+		}
 	}
 	if (i.status == TNT_ITER_FAIL)
 		printf("recv failed: %s\n", tnt_strerror(a->t));
