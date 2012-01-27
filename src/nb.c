@@ -31,8 +31,8 @@
 #include <assert.h>
 #include <pthread.h>
 
-#include <tnt.h>
-#include <tnt_net.h>
+#include <libtnt/tnt.h>
+#include <libtnt/tnt_net.h>
 
 #include <nb_queue.h>
 #include <nb_stat.h>

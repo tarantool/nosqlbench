@@ -28,7 +28,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <tnt.h>
+#include <libtnt/tnt.h>
 
 #include <nb_queue.h>
 #include <nb_stat.h>
