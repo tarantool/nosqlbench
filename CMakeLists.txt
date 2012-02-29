@@ -7,10 +7,15 @@ include(CheckIncludeFiles)
 
 ## build options
 ##
-option(LIBTNT_INCLUDE
-	"libtnt include path" "/usr/include")
-option(LIBTNT_LIB
-	"libtnt lib path" "/usr/lib")
+option(LIBTNT_INCLUDE "libtnt include path")
+option(LIBTNT_LIB "libtnt lib path")
+
+if (NOT LIBTNT_INCLUDE)
+	set (LIBTNT_INCLUDE "/usr/include")
+endif()
+if (NOT LIBTNT_LIB)
+	set (LIBTNT_LIB "/usr/lib")
+endif()
 
 ## libtnt matching
 ##
