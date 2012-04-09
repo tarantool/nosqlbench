@@ -84,7 +84,7 @@ nb_usage(struct nb_opt *opts, char *name)
 	printf("  -h, --help                           show usage\n\n");
 
 	printf("examples:\n");
-	printf("  # standart iproto benchmark (insert, update, select)\n");
+	printf("  # standard iproto benchmark (insert, update, select)\n");
 	printf("  nb --test-std-tnt\n\n");
 
 	printf("  # benchmark insert, select for range of 5 - 100 bytes payload\n");
