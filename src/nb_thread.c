@@ -62,10 +62,9 @@ nb_threads_create(struct nb_threads *threads, int count,
 		      nb_threadf_t cb)
 {
 	threads->count = count;
-	threads->threads = malloc(sizeof(struct nb_thread) * count);
+	threads->threads = calloc(count, sizeof(struct nb_thread));
 	if (threads->threads == NULL)
 		return -1;
-	memset(threads->threads, 0, sizeof(threads->threads));
 	int i;
 	for (i = 0 ; i < count ; i++) {
 		struct nb_thread *t = &threads->threads[i];
