@@ -62,8 +62,8 @@ nb_usage(struct nb_opt *opts, char *name)
 
 	printf("benchmark:\n");
 	printf("  -L, --test-list                      list available tests\n");
-	printf("  -A, --test-std-tnt                   standart tarantool testing set (%s)\n", nb_usage_onoff(opts->std));
-	printf("  -M, --test-std-mc                    standart memcache testing set (%s)\n", nb_usage_onoff(opts->std_memcache));
+	printf("  -A, --test-std-tnt                   standard tarantool testing set (%s)\n", nb_usage_onoff(opts->std));
+	printf("  -M, --test-std-mc                    standard memcache testing set (%s)\n", nb_usage_onoff(opts->std_memcache));
 	printf("  -T, --test [name,...]                list of tests\n");
 	printf("  -B, --test-buf [buf,...]             test buffer sizes\n");
 	printf("  -F, --test-buf-file [path]           read tests buffer sizes from file\n");
