@@ -60,9 +60,9 @@ nb_plot_data(struct nb *bench, struct nb_test *test)
 	STAILQ_FOREACH(b, &test->list, next) {
 		pos  = snprintf(data, sizeof(data), "%d\t", b->buf);
 		pos += snprintf(data + pos,
-			sizeof(data) - pos, "%f\t", b->stat.rps);
+			sizeof(data) - pos, "%g\t", b->stat.rps);
 		pos += snprintf(data + pos,
-			sizeof(data) - pos, "%f\t", b->stat_es.rps);
+			sizeof(data) - pos, "%g\t", b->stat_es.rps);
 		fputs(data, f);
 		fputc('\n', f);
 	}
