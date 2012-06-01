@@ -35,7 +35,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#include <libtnt/tnt.h>
+#include <tarantool/tnt.h>
 
 #include <nb_queue.h>
 #include <nb_stat.h>

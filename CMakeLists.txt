@@ -7,8 +7,8 @@ include(CheckIncludeFiles)
 
 ## build options
 ##
-option(LIBTNT_INCLUDE "libtnt include path")
-option(LIBTNT_LIB "libtnt lib path")
+option(LIBTNT_INCLUDE "libtarantool include path")
+option(LIBTNT_LIB "libtarantool lib path")
 
 if (NOT LIBTNT_INCLUDE)
 	set (LIBTNT_INCLUDE "/usr/include")
@@ -17,27 +17,27 @@ if (NOT LIBTNT_LIB)
 	set (LIBTNT_LIB "/usr/lib")
 endif()
 
-## libtnt matching
+## libtarantool matching
 ##
-find_path(LIBTNT_HEADER_DIR libtnt/tnt.h "${LIBTNT_INCLUDE}")
+find_path(LIBTNT_HEADER_DIR tarantool/tnt.h "${LIBTNT_INCLUDE}")
 if (NOT LIBTNT_HEADER_DIR)
 	message(FATAL_ERROR 
 	"Tarantool DB client library header not found")
 endif()
 
-find_path(LIBTNT_LIB_DIR libtnt.a "${LIBTNT_LIB}")
+find_path(LIBTNT_LIB_DIR libtarantool.a "${LIBTNT_LIB}")
 if (NOT LIBTNT_LIB_DIR)
 	message(FATAL_ERROR 
 	"Tarantool DB client library (-ltnt) not found")
 endif()
 
-find_path(LIBTNTNET_HEADER_DIR libtnt/tnt_net.h "${LIBTNT_INCLUDE}")
+find_path(LIBTNTNET_HEADER_DIR tarantool/tnt_net.h "${LIBTNT_INCLUDE}")
 if (NOT LIBTNTNET_HEADER_DIR)
 	message(FATAL_ERROR 
 	"Tarantool DB client library header not found")
 endif()
 
-find_path(LIBTNTNET_LIB_DIR libtntnet.a "${LIBTNT_LIB}")
+find_path(LIBTNTNET_LIB_DIR libtarantoolnet.a "${LIBTNT_LIB}")
 if (NOT LIBTNTNET_LIB_DIR)
 	message(FATAL_ERROR 
 	"Tarantool DB client library (-ltntnet) not found")

@@ -1,7 +1,7 @@
 
 set(nb_bin nb)
 
-set(nb_libs tntnet tnt m)
+set(nb_libs tarantoolnet tarantool m)
 set(nb_src
 	nb_arg.c
 	nb_stat.c

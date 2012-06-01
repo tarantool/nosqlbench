@@ -29,8 +29,8 @@
 #include <string.h>
 #include <inttypes.h>
 
-#include <libtnt/tnt.h>
-#include <libtnt/tnt_net.h>
+#include <tarantool/tnt.h>
+#include <tarantool/tnt_net.h>
 
 #include <nb_queue.h>
 #include <nb_stat.h>
