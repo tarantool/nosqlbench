@@ -25,10 +25,10 @@ if (NOT LIBTNT_HEADER_DIR)
 	"Tarantool DB client library header not found")
 endif()
 
-find_path(LIBTNT_LIB_DIR libtarantool.a "${LIBTNT_LIB}")
+find_path(LIBTNT_LIB_DIR libtarantool.a PATH "${LIBTNT_LIB}" "${LIBTNT_LIB}/tnt")
 if (NOT LIBTNT_LIB_DIR)
 	message(FATAL_ERROR 
-	"Tarantool DB client library (-ltnt) not found")
+	"Tarantool DB client library (-ltarantool) not found")
 endif()
 
 find_path(LIBTNTNET_HEADER_DIR tarantool/tnt_net.h "${LIBTNT_INCLUDE}")
@@ -37,10 +37,10 @@ if (NOT LIBTNTNET_HEADER_DIR)
 	"Tarantool DB client library header not found")
 endif()
 
-find_path(LIBTNTNET_LIB_DIR libtarantoolnet.a "${LIBTNT_LIB}")
+find_path(LIBTNTNET_LIB_DIR libtarantoolnet.a PATH "${LIBTNT_LIB}" "${LIBTNT_LIB}/tntnet")
 if (NOT LIBTNTNET_LIB_DIR)
 	message(FATAL_ERROR 
-	"Tarantool DB client library (-ltntnet) not found")
+	"Tarantool DB client library (-ltarantoolnet) not found")
 endif()
 
 ## cflags
@@ -50,7 +50,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread -O3 -std=gnu99 -pedantic -Wall -Wex
 include_directories("${PROJECT_SOURCE_DIR}/src")
 include_directories("${LIBTNT_HEADER_DIR}")
 
-link_directories("${LIBTNT_LIB_DIR}")
+link_directories("${LIBTNT_LIB_DIR}" "${LIBTNTNET_LIB_DIR}")
 
 add_subdirectory(src)
 
