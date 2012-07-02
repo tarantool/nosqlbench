@@ -42,11 +42,6 @@
 #include <nb_cb.h>
 #include <nb_raw.h>
 
-struct tnt_header_insert {
-	uint32_t ns;
-	uint32_t flags;
-};
-
 int
 nb_raw_insert(struct tnt_stream *t, char *key, char *data, int data_size)
 {

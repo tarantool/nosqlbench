@@ -51,9 +51,9 @@ static void nb_cb_error(struct nb_func_arg *a, char *name) {
 
 static void nb_cb_recv(struct nb_func_arg *a) {
 	struct tnt_iter i;
-	tnt_iter_stream(&i, a->t);
+	tnt_iter_reply(&i, a->t);
 	while (tnt_next(&i)) {
-		struct tnt_reply *r = TNT_ISTREAM_REPLY(&i);
+		struct tnt_reply *r = TNT_IREPLY_PTR(&i);
 		if (tnt_error(a->t) != TNT_EOK) {
 			printf("error, %s\n", tnt_strerror(a->t));
 		} else if (r->code != 0) {
