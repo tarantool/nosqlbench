@@ -1,0 +1,36 @@
+
+#
+#
+
+workload name {
+	benchmark no-limit | time-limit | request-limit
+
+	time_limit 10sec
+
+	requests_count 100000
+	requests_batch_count 1000
+
+	report_interval 5sec
+	report_type default
+
+	csv_file "benchmark.csv"
+
+	statistic_history_per_batch 16
+
+	client_creation_policy at-once | interval
+	cilent_creation_interval 5ms
+	client_max 100
+
+	key_distribution uniform | gaussian
+	key_distribution_iter 4
+	key_type string | u32 | u64
+
+	value_size 16
+
+	test_distribution round-robin
+
+	test_replace 35%
+	test_update 10%
+	test_delete 10%
+	test_select 10%
+}
