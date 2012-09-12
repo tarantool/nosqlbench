@@ -19,7 +19,11 @@ struct nb_options {
 	int time_limit;
 
 	int report_interval;
-	const char *report;
+	char *report;
+
+	int request_count;
+	int request_batch_count;
+	int history_per_batch;
 
 	enum nb_policy_threads threads_policy;
 	int threads_start;
@@ -27,16 +31,11 @@ struct nb_options {
 	int threads_increment;
 	int threads_interval;
 
-	int request_count;
-	int request_batch_count;
-
-	int history_per_batch;
-
 	char *csv_file;
 
-	const char *db;
-	const char *key;
-	const char *key_dist;
+	char *db;
+	char *key;
+	char *key_dist;
 	int key_dist_iter;
 
 	int value_size;
@@ -51,6 +50,6 @@ struct nb_options {
 };
 
 void nb_opt_init(struct nb_options *opts);
-int nb_opt_configure(struct nb_options *opts, char *file);
+void nb_opt_free(struct nb_options *opts);
 
 #endif

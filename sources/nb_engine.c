@@ -34,9 +34,19 @@ nb_worker_account(struct nb_worker *worker, int batch)
 	pthread_mutex_unlock(&lock_stats);
 }
 
+static void
+nb_worker_init(void) {
+	sigset_t set;
+	sigemptyset(&set);
+	sigaddset(&set, SIGINT);
+	pthread_sigmask(SIG_BLOCK, &set, NULL);
+}
+
 static void *nb_worker(void *ptr)
 {
 	struct nb_worker *worker = ptr;
+
+	nb_worker_init();
 
 	nb.db->init(&worker->db, 1);
 	if (nb.db->connect(&worker->db, nb.opts.host, nb.opts.port) == -1)

@@ -35,8 +35,6 @@ static void nb_report_default_final(void)
 {
 	char *report = 
 	"\n"
-	"key misses: %d\n"
-	"\n"
 	".----------.---------------.---------------.---------------.\n"
 	"|   type   |    minimal    |    average    |     maximum   |\n"
 	".----------.---------------.---------------.---------------.\n"
@@ -47,7 +45,6 @@ static void nb_report_default_final(void)
 	"'----------.---------------.---------------.---------------'\n"
 	"\n";
 	printf(report, 
-	       nb.stats.final.missed,
 	       nb.stats.final.ps_read_min,
 	       nb.stats.final.ps_read_avg,
 	       nb.stats.final.ps_read_max,

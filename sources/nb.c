@@ -27,9 +27,18 @@ static void nb_error(char *fmt, ...) {
 
 volatile sig_atomic_t nb_signaled = 0;
 
-static void nb_sigcb(int sig)
-{
+static void nb_sigcb(int sig) {
 	nb_signaled = 1;
+}
+
+static void nb_init_signal(void)
+{
+	struct sigaction sa;
+	memset(&sa, 0, sizeof(sa));
+	sigemptyset(&sa.sa_mask);
+	sa.sa_handler = nb_sigcb;
+	if (sigaction(SIGINT, &sa, NULL) == -1)
+		nb_error("signal initialization failed\n");
 }
 
 static void nb_init(void)
@@ -72,41 +81,47 @@ static void nb_init(void)
 	if (nb.report->init)
 		nb.report->init();
 	/* initialize signal handler */
-	struct sigaction sa;
-	memset(&sa, 0, sizeof(sa));
-	sigemptyset(&sa.sa_mask);
-	sa.sa_handler = nb_sigcb;
-	if (sigaction(SIGINT, &sa, NULL) == -1)
-		nb_error("signal initialization failed\n");
+	nb_init_signal();
 }
 
 static void nb_free(void)
 {
 	nb_statistics_free(&nb.stats);
 	nb_workers_free(&nb.workers);
-	if (nb.report->free)
+	if (nb.report && nb.report->free)
 		nb.report->free();
+	nb_opt_free(&nb.opts);
 }
 
 int main(int argc, char * argv[])
 {
+	int rc = 0;
 	memset(&nb, 0, sizeof(struct nb));
 
-	nb_opt_init(&nb.opts);
-	/* read configuration */
+	int is_help = (argc == 2 && !strcmp(argv[1], "-h"));
 
-	nb_init();
-
-	nb.report->report_start();
-
-	int rc = nb_warmup();
-	if (rc) {
-		nb_free();
-		return rc;
+	if ((argc > 1 && argc != 2) || is_help) {
+		printf("NoSQL Benchmarking.\n\n");
+		printf("usage: %s [config_file_path]\n", argv[0]);
+		return 1;
 	}
 
-	nb_engine();
+	nb_opt_init(&nb.opts);
+	char *config = (argc == 2) ? argv[1] : NB_DEFAULT_CONFIG;
 
+	if (nb_config_parse(&nb.opts, config) == -1) {
+		rc = 1;
+		goto done;
+	}
+
+	nb_init();
+	nb.report->report_start();
+
+	rc = nb_warmup();
+	if (rc)
+		goto done;
+	nb_engine();
+done:
 	nb_free();
 	return rc;
 }
