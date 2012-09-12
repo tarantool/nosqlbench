@@ -133,7 +133,6 @@ nb_config_expect_of(struct nb_config *cfg, struct tnt_tk **tkp, int argc, ...)
 {
 	va_list args;
 	va_start(args, argc);
-
 	char list[256];
 	int off = 0;
 	struct tnt_tk *tkp_ = NULL;
@@ -149,7 +148,7 @@ nb_config_expect_of(struct nb_config *cfg, struct tnt_tk **tkp, int argc, ...)
 		}
 		off += snprintf(list + off, sizeof(list) - off, "%s%s", 
 			        tnt_lex_nameof(&cfg->lex, tk),
-				(i - 1 > 0) ? ", " : "");
+				(i > 0) ? ", " : "");
 	}
 	return nb_config_error(cfg, tkp_, "expected any of '%s'", list);
 }
