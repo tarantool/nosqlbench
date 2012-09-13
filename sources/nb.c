@@ -28,6 +28,7 @@ static void nb_error(char *fmt, ...) {
 volatile sig_atomic_t nb_signaled = 0;
 
 static void nb_sigcb(int sig) {
+	(void)sig;
 	nb_signaled = 1;
 }
 
@@ -93,7 +94,7 @@ static void nb_free(void)
 	nb_opt_free(&nb.opts);
 }
 
-int main(int argc, char * argv[])
+int main(int argc, char *argv[])
 {
 	int rc = 0;
 	memset(&nb, 0, sizeof(struct nb));

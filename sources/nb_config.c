@@ -322,7 +322,7 @@ static int nb_config_read(char *file, char **buf, size_t *size)
 	if (fd == -1)
 		return -1;
 	*buf = nb_malloc(st.st_size);
-	size_t off = 0;
+	ssize_t off = 0;
 	do {
 		ssize_t r = read(fd, *buf + off, st.st_size - off);
 		if (r == -1) {

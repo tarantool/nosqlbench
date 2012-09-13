@@ -160,7 +160,7 @@ static void nb_dist_gaussian_init(int iterations)
 static unsigned int nb_dist_gaussian_random(unsigned int max)
 {
 	int sum = 0;
-	unsigned int i = 0;
+	int i = 0;
 	while (i < gaussian_iter) {
 		sum += random() % max;
 		i++;

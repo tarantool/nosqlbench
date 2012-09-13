@@ -47,7 +47,7 @@ int nb_warmup(void)
 	}
 
 	int missed = 0;
-	uint32_t i = 0;
+	int i = 0;
 	while (i < nb.opts.request_count && !nb_signaled) {
 		nb.key->generate_by_id(&key, i);
 		nb.db->insert(&db, &key);

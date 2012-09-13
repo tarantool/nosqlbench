@@ -17,7 +17,7 @@ TARANTOOL_CFLAGS = -I${TARANTOOL_INCLUDE}
 TARANTOOL_LIBS = -ltarantoolnet -ltarantoolsql -ltarantool
 TARANTOOL_LFLAGS = -L${TARANTOOL_LIB} ${TARANTOOL_LIBS}
 
-CFLAGS = -I. -Wall -g ${TARANTOOL_CFLAGS}
+CFLAGS = -I. -Wall -Wextra -g ${TARANTOOL_CFLAGS}
 LFLAGS = ${TARANTOOL_LFLAGS} -pthread 
 
 OBJECTS = nb_opt.o \
