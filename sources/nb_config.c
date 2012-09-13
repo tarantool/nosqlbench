@@ -139,7 +139,7 @@ nb_config_expect_of(struct nb_config *cfg, struct tnt_tk **tkp, int argc, ...)
 	int tk_ = tnt_lex(&cfg->lex, &tkp_);
 	int i = argc;
 	while (i-- > 0) {
-		int tk = va_arg(&args, int);
+		int tk = va_arg(args, int);
 		if (tk == tk_) {
 			if (tkp)
 				*tkp = tkp_;
