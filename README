@@ -1,8 +1,8 @@
 
 NoSQL Benchmarking.
 
-NoSQL Benchamrking is a multi-threaded benchmark tool for evaluating main
-database metrics using OLTP-alike benchmarking against
+NoSQL Benchmarking is a multi-threaded benchmark tool for evaluating main
+database performance metrics using OLTP-alike benchmarking against
 a specified workload.
 
 Features include:
