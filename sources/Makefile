@@ -6,12 +6,12 @@
 CC = gcc
 RM = rm
 
-BUILD_CONFIG_CACHE = cache.mk
+BUILD_CONFIG = .build_config
 
 TARANTOOL_INCLUDE ?= ""
 TARANTOOL_LIB ?= ""
 
--include ${BUILD_CONFIG_CACHE}
+-include ${BUILD_CONFIG}
 
 TARANTOOL_CFLAGS = -I${TARANTOOL_INCLUDE}
 TARANTOOL_LIBS = -ltarantoolnet -ltarantoolsql -ltarantool
@@ -35,7 +35,7 @@ OBJECTS = nb_opt.o \
 
 TARGET  = nb
 
-all: check_env write_cache banner ${TARGET}
+all: check_env write_config banner ${TARGET}
 	@echo 
 	@echo done
 
@@ -50,9 +50,9 @@ check_env:
 		exit 1 ; \
 	fi
 
-write_cache:
-	@echo "TARANTOOL_LIB = ${TARANTOOL_LIB}" > ${BUILD_CONFIG_CACHE}
-	@echo "TARANTOOL_INCLUDE = ${TARANTOOL_INCLUDE}" >> ${BUILD_CONFIG_CACHE}
+write_config:
+	@echo "TARANTOOL_LIB = ${TARANTOOL_LIB}" > ${BUILD_CONFIG}
+	@echo "TARANTOOL_INCLUDE = ${TARANTOOL_INCLUDE}" >> ${BUILD_CONFIG}
 
 banner:
 	@echo 

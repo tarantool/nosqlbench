@@ -1,5 +1,5 @@
 .gitignore
-cache.mk
+.build_config
 *.o
 *.a
 sources/nb
