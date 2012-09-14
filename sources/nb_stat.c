@@ -61,6 +61,8 @@ nb_statistics_current(struct nb_statistics *s, struct nb_stat *dest)
 		dest->latency_batch += s->stats[i].latency_batch;
 		dest->cnt_miss += s->stats[i].cnt_miss;
 	}
+	dest->latency_req /= s->count;
+	dest->latency_batch /= s->count;
 }
 
 void nb_statistics_report(struct nb_statistics *s, int workers, int tick)

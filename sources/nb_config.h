@@ -3,6 +3,6 @@
 
 #define NB_DEFAULT_CONFIG "nosqlbench.conf"
 
-int nb_config_parse(struct nb_options *opts, char *file);
+int nb_config_parse(char *file);
 
 #endif

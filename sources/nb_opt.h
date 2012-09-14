@@ -1,10 +1,10 @@
 #ifndef NB_OPT_H_INCLUDED
 #define NB_OPT_H_INCLUDED
 
+
 enum nb_policy_benchmark {
 	NB_BENCHMARK_NOLIMIT,
 	NB_BENCHMARK_TIMELIMIT,
-	NB_BENCHMARK_REQLIMIT,
 	NB_BENCHMARK_THREADLIMIT
 };
 
@@ -15,6 +15,7 @@ enum nb_policy_threads {
 
 struct nb_options {
 	enum nb_policy_benchmark benchmark_policy;
+	char *benchmark_policy_name;
 
 	int time_limit;
 
@@ -26,6 +27,7 @@ struct nb_options {
 	int history_per_batch;
 
 	enum nb_policy_threads threads_policy;
+	char *threads_policy_name;
 	int threads_start;
 	int threads_max;
 	int threads_increment;

@@ -18,6 +18,10 @@ static void nb_report_start(void)
 {
 	printf("NoSQL Benchmark.\n");
 	printf("\n");
+	printf("Server is %s:%d.\n",
+	       nb.opts.host,
+	       nb.opts.port);
+	printf("\n");
 }
 
 static void nb_report_default(void)

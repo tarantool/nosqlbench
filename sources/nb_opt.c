@@ -39,6 +39,8 @@ void nb_opt_init(struct nb_options *opts)
 
 void nb_opt_free(struct nb_options *opts)
 {
+	free(opts->benchmark_policy_name);
+	free(opts->threads_policy_name);
 	free(opts->report);
 	free(opts->csv_file);
 	free(opts->db);

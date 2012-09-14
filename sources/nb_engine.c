@@ -154,8 +154,6 @@ static void nb_limit(void)
 		if (nb_period_equal(nb.opts.time_limit))
 			nb.is_done = 1;
 		break;
-	case NB_BENCHMARK_REQLIMIT:
-		break;
 	}
 }
 

@@ -21,7 +21,6 @@ CFLAGS = -I. -Wall -Wextra -g ${TARANTOOL_CFLAGS}
 LFLAGS = ${TARANTOOL_LFLAGS} -pthread 
 
 OBJECTS = nb_opt.o \
-	  nb_config.o \
 	  nb_db.o \
 	  nb_db_tarantool.o \
 	  nb_stat.o \
@@ -31,6 +30,7 @@ OBJECTS = nb_opt.o \
 	  nb_warmup.o \
 	  nb_worker.o \
 	  nb_engine.o \
+	  nb_config.o \
 	  nb.o
 
 TARGET  = nb

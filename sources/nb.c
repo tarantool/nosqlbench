@@ -20,6 +20,7 @@ static void nb_error(char *fmt, ...) {
 	va_start(args, fmt);
 	printf("error: ");
 	vprintf(fmt, args);
+	printf("\n");
 	va_end(args);
 	fflush(NULL);
 	exit(1);
@@ -44,6 +45,31 @@ static void nb_init_signal(void)
 
 static void nb_init(void)
 {
+	/* validating benchmark_policy */
+	if (nb.opts.benchmark_policy_name) {
+		if (!strcmp(nb.opts.benchmark_policy_name, "time_limit"))
+			nb.opts.benchmark_policy = NB_BENCHMARK_TIMELIMIT;
+		else
+		if (!strcmp(nb.opts.benchmark_policy_name, "thread_limit"))
+			nb.opts.benchmark_policy = NB_BENCHMARK_THREADLIMIT;
+		else
+		if (!strcmp(nb.opts.benchmark_policy_name, "no_limit"))
+			nb.opts.benchmark_policy = NB_BENCHMARK_NOLIMIT;
+		else
+			nb_error("bad benchmarking policy '%s'",
+				 nb.opts.benchmark_policy_name);
+	}
+	/* validating client_creation_policy */
+	if (nb.opts.threads_policy_name) {
+		if (!strcmp(nb.opts.threads_policy_name, "at_once"))
+			nb.opts.threads_policy = NB_THREADS_ATONCE;
+		else
+		if (!strcmp(nb.opts.threads_policy_name, "interval"))
+			nb.opts.threads_policy = NB_THREADS_INTERVAL;
+		else
+			nb_error("bad client creation policy '%s'",
+				 nb.opts.threads_policy_name);
+	}
 	/* matching and validation specified interfaces */
 	nb.db = nb_db_match(nb.opts.db);
 	if (nb.db == NULL)
@@ -110,7 +136,7 @@ int main(int argc, char *argv[])
 	nb_opt_init(&nb.opts);
 	char *config = (argc == 2) ? argv[1] : NB_DEFAULT_CONFIG;
 
-	if (nb_config_parse(&nb.opts, config) == -1) {
+	if (nb_config_parse(config) == -1) {
 		rc = 1;
 		goto done;
 	}
