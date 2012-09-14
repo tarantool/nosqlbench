@@ -91,8 +91,11 @@ static void *nb_worker(void *ptr)
 
 static void nb_create(void)
 {
+	int max = (nb.opts.threads_policy == NB_THREADS_ATONCE) ?
+		   nb.opts.threads_max :
+		   nb.opts.threads_start;
 	int i;
-	for (i = 0; i < nb.opts.threads_start; i++)
+	for (i = 0; i < max; i++)
 		nb_workers_create(&nb.workers,
 				  nb.db,
 				  nb.key,
@@ -147,7 +150,7 @@ static void nb_limit(void)
 	case NB_BENCHMARK_NOLIMIT:
 		return;
 	case NB_BENCHMARK_THREADLIMIT:
-		if (nb.workers.count == nb.opts.threads_max)
+		if (nb.workers.count >= nb.opts.threads_max)
 			nb.is_done = 1;
 		break;
 	case NB_BENCHMARK_TIMELIMIT:

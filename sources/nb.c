@@ -43,7 +43,7 @@ static void nb_init_signal(void)
 		nb_error("signal initialization failed\n");
 }
 
-static void nb_init(void)
+static void nb_validate(void)
 {
 	/* validating benchmark_policy */
 	if (nb.opts.benchmark_policy_name) {
@@ -83,16 +83,36 @@ static void nb_init(void)
 	nb.report = nb_report_match(nb.opts.report);
 	if (nb.report == NULL)
 		nb_error("report interface '%s' not found", nb.opts.report);
-	/* checking request distributions */
+	/* validating request distributions */
 	if (nb.opts.request_count == 0)
 		nb_error("bad request distribution");
-	if (nb.opts.dist_replace +
-	    nb.opts.dist_update +
-	    nb.opts.dist_select +
-	    nb.opts.dist_delete == 0)
+	int dist = nb.opts.dist_replace + nb.opts.dist_update +
+		   nb.opts.dist_select +
+		   nb.opts.dist_delete;
+	if (dist <= 0)
 		nb_error("bad request distribution");
+	if (dist < 100)
+		nb_error("request distribution is lower than 100%");
+	if (dist > 100)
+		nb_error("request distribution is higher than 100%");
+	/* validating threads distributions */
+	if (nb.opts.threads_policy == NB_THREADS_ATONCE &&
+	    nb.opts.threads_max <= 0)
+		nb_error("bad threads_max count");
+	if (nb.opts.threads_policy == NB_THREADS_INTERVAL &&
+	    nb.opts.threads_start <= 0)
+		nb_error("bad threads_start count");
+}
+
+static void nb_init(void)
+{
+	/* validating current configuration options */
+	nb_validate();
 	/* initialize statistics */
-	nb_statistics_init(&nb.stats, nb.opts.threads_start);
+	int statmax = (nb.opts.threads_policy == NB_THREADS_ATONCE) ?
+		       nb.opts.threads_max :
+		       nb.opts.threads_start;
+	nb_statistics_init(&nb.stats, statmax);
 	/* initialize workload */
 	nb_workers_init(&nb.workers);
 	nb_workload_init(&nb.workload, nb.opts.request_count);
@@ -120,21 +140,29 @@ static void nb_free(void)
 	nb_opt_free(&nb.opts);
 }
 
+static int nb_usage(char *binary)
+{
+	printf("NoSQL Benchmarking.\n\n");
+	printf("usage: %s [config_file_path]\n", binary);
+	return 1;
+}
+
 int main(int argc, char *argv[])
 {
 	int rc = 0;
 	memset(&nb, 0, sizeof(struct nb));
 
-	int is_help = (argc == 2 && !strcmp(argv[1], "-h"));
-
-	if ((argc > 1 && argc != 2) || is_help) {
-		printf("NoSQL Benchmarking.\n\n");
-		printf("usage: %s [config_file_path]\n", argv[0]);
-		return 1;
+	char *config = NB_DEFAULT_CONFIG;
+	if (argc == 2) {
+		if (!strcmp(argv[1], "-h") ||
+		    !strcmp(argv[1], "--help"))
+			return nb_usage(argv[0]);
+		config = argv[1];
 	}
+	if (argc > 1 && argc != 2)
+		return nb_usage(argv[0]);
 
 	nb_opt_init(&nb.opts);
-	char *config = (argc == 2) ? argv[1] : NB_DEFAULT_CONFIG;
 
 	if (nb_config_parse(config) == -1) {
 		rc = 1;
@@ -145,8 +173,9 @@ int main(int argc, char *argv[])
 	nb.report->report_start();
 
 	rc = nb_warmup();
-	if (rc)
+	if (rc || nb_signaled)
 		goto done;
+
 	nb_engine();
 done:
 	nb_free();
