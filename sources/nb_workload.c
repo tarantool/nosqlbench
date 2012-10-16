@@ -120,21 +120,18 @@ void nb_workload_reset(struct nb_workload *workload)
 
 struct nb_request *nb_workload_fetch(struct nb_workload *workload)
 {
-	do {
+	while(1) {
 		if (workload->head == NULL)
 			return NULL;
 		if (workload->current) {
-			if (workload->current->count == workload->requested) {
+			if (workload->current->count == workload->requested)
 				nb_workload_unlink(workload);
-				continue;
-			}
 			workload->current = workload->current->next;
 			if (workload->current == NULL)
 				workload->current = workload->head;
 		} else
 			workload->current = workload->head;
 		break;
-	} while (1);
-
+	}
 	return workload->current;
 }
