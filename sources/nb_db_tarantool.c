@@ -55,6 +55,7 @@ static int db_tarantool_init(struct nb_db *db, size_t value_size) {
 	t->value_size = value_size;
 	t->value = nb_malloc(t->value_size);
 	memset(t->value, '#', t->value_size - 1);
+	t->value[t->value_size - 1] = 0;
 	return 0;
 }
 

@@ -134,7 +134,7 @@ struct nb_request *nb_workload_fetch(struct nb_workload *workload)
 		} else
 			workload->current = workload->head;
 		break;
-	} while (0);
+	} while (1);
 
 	return workload->current;
 }
