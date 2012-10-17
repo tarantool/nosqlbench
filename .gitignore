@@ -1,5 +1,13 @@
-.gitignore
-.build_config
+.~
+*~
 *.o
 *.a
-sources/nb
+*.user
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+install_manifest.txt
+Makefile
+.build_config
+Temp/
+*-build*/
