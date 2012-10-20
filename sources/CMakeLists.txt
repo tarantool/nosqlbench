@@ -1,5 +1,5 @@
 
-set(nb_bin nb2)
+set(nb_bin nb)
 
 set(nb_libs "${TARANTOOL_LIB}" "${TARANTOOLNET_LIB}" "${TARANTOOLSQL_LIB}" ${M_LIB})
 set(nb_src
@@ -32,6 +32,3 @@ set(nb_src
 
 add_executable(${nb_bin} ${nb_src})
 target_link_libraries(${nb_bin} ${nb_libs})
-
-install_targets(/bin ${nb_bin})
-install_files(/etc/tarantool nosqlbench.conf)

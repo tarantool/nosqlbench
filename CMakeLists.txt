@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.6)
 
-project(nb2)
+project(nb)
 
 option(LIBTNT_PATH "libtarantool path")
 
