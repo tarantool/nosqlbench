@@ -1,5 +1,5 @@
-Copyright (C) 2010, 2011, 2012 Tarantool/Box AUTHORS:
-please see AUTHORS file.
+#ifndef NB_WARMUP_H_INCLUDED
+#define NB_WARMUP_H_INCLUDED
 
 /*
  * Redistribution and use in source and binary forms, with or
@@ -29,3 +29,7 @@ please see AUTHORS file.
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
+int nb_warmup(void);
+
+#endif

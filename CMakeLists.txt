@@ -1,57 +1,29 @@
 cmake_minimum_required(VERSION 2.6)
 
-project(nosqlb)
+project(nb2)
 
-include(CheckLibraryExists)
-include(CheckIncludeFiles)
+option(LIBTNT_PATH "libtarantool path")
 
 ## build options
 ##
-option(LIBTNT_INCLUDE "libtarantool include path")
-option(LIBTNT_LIB "libtarantool lib path")
-
-if (NOT LIBTNT_INCLUDE)
-	set (LIBTNT_INCLUDE "/usr/include")
-endif()
-if (NOT LIBTNT_LIB)
-	set (LIBTNT_LIB "/usr/lib")
-endif()
-
-## libtarantool matching
-##
-find_path(LIBTNT_HEADER_DIR tarantool/tnt.h "${LIBTNT_INCLUDE}")
-if (NOT LIBTNT_HEADER_DIR)
+find_path(TARANTOOL_INCLUDE_DIR tarantool/tnt.h "${LIBTNT_PATH}/include")
+if (NOT TARANTOOL_INCLUDE_DIR)
 	message(FATAL_ERROR 
 	"Tarantool DB client library header not found")
 endif()
 
-find_path(LIBTNT_LIB_DIR libtarantool.a PATH "${LIBTNT_LIB}" "${LIBTNT_LIB}/tnt")
-if (NOT LIBTNT_LIB_DIR)
-	message(FATAL_ERROR 
-	"Tarantool DB client library (-ltarantool) not found")
-endif()
-
-find_path(LIBTNTNET_HEADER_DIR tarantool/tnt_net.h "${LIBTNT_INCLUDE}")
-if (NOT LIBTNTNET_HEADER_DIR)
-	message(FATAL_ERROR 
-	"Tarantool DB client library header not found")
-endif()
-
-find_path(LIBTNTNET_LIB_DIR libtarantoolnet.a PATH "${LIBTNT_LIB}" "${LIBTNT_LIB}/tntnet")
-if (NOT LIBTNTNET_LIB_DIR)
-	message(FATAL_ERROR 
-	"Tarantool DB client library (-ltarantoolnet) not found")
-endif()
+find_library(TARANTOOL_LIB tarantool PATH ${LIBTNT_PATH}/tnt)
+find_library(TARANTOOLNET_LIB tarantoolnet PATH ${LIBTNT_PATH}/tntnet)
+find_library(TARANTOOLSQL_LIB tarantoolsql PATH ${LIBTNT_PATH}/tntsql)
+find_library(M_LIB m)
 
 ## cflags
 ##
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread -O3 -std=gnu99 -pedantic -Wall -Wextra")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread -std=gnu99 -pedantic -Wall -Wextra")
+set(CMAKE_C_FLAGS_DEBUG "-O0 -g -pg")
+set(CMAKE_C_FLAGS_RELEASE "-O3 -march=native")
 
-include_directories("${PROJECT_SOURCE_DIR}/src")
-include_directories("${LIBTNT_HEADER_DIR}")
+include_directories("${PROJECT_SOURCE_DIR}/sources")
+include_directories("${TARANTOOL_INCLUDE_DIR}")
 
-link_directories("${LIBTNT_LIB_DIR}" "${LIBTNTNET_LIB_DIR}")
-
-add_subdirectory(src)
-
-install(FILES README LICENSE DESTINATION doc)
+add_subdirectory(sources)

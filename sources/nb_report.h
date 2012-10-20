@@ -1,5 +1,5 @@
-Copyright (C) 2010, 2011, 2012 Tarantool/Box AUTHORS:
-please see AUTHORS file.
+#ifndef NB_REPORT_H_INCLUDED
+#define NB_REPORT_H_INCLUDED
 
 /*
  * Redistribution and use in source and binary forms, with or
@@ -29,3 +29,18 @@ please see AUTHORS file.
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
+struct nb_report_if {
+	const char *name;
+	void (*init)(void);
+	void (*free)(void);
+	void (*report_start)(void);
+	void (*report)(void);
+	void (*report_final)(void);
+};
+
+extern struct nb_report_if nb_reports[];
+
+struct nb_report_if *nb_report_match(const char *name);
+
+#endif

@@ -1,5 +1,5 @@
-Copyright (C) 2010, 2011, 2012 Tarantool/Box AUTHORS:
-please see AUTHORS file.
+#ifndef NOSQLBENCH_H_INCLUDED
+#define NOSQLBENCH_H_INCLUDED
 
 /*
  * Redistribution and use in source and binary forms, with or
@@ -29,3 +29,18 @@ please see AUTHORS file.
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
+#include "nb_alloc.h"
+#include "nb_opt.h"
+#include "nb_config.h"
+#include "nb_key.h"
+#include "nb_db.h"
+#include "nb_workload.h"
+#include "nb_stat.h"
+#include "nb_worker.h"
+#include "nb_report.h"
+#include "nb_warmup.h"
+#include "nb_engine.h"
+#include "nb.h"
+
+#endif
