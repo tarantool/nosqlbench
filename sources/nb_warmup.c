@@ -85,8 +85,8 @@ int nb_warmup(void)
 			nb_warmup_progressbar(i);
 		}
 	}
-	if (!nb_signaled)
-		nb.db->recv(&db, nb.opts.request_batch_count, &missed);
+	if (!nb_signaled && i < nb.opts.request_batch_count)
+		nb.db->recv(&db, nb.opts.request_batch_count - i, &missed);
 free:
 	printf("\n");
 
