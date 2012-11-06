@@ -30,5 +30,20 @@ set(nb_src
 	nb_workload.h
 )
 
+find_package (LevelDB QUIET)
+if (LEVELDB_FOUND)
+	set(nb_src ${nb_src}
+		nb_db_leveldb.c
+		nb_db_leveldb.h
+	)
+
+	include_directories(${LEVELDB_INCLUDE_DIRS})
+	SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DHAVE_LEVELDB")
+endif (LEVELDB_FOUND)
+
 add_executable(${nb_bin} ${nb_src})
 target_link_libraries(${nb_bin} ${nb_libs})
+
+if (LEVELDB_FOUND)
+	target_link_libraries (${nb_bin} ${LEVELDB_LIBRARIES})
+endif (LEVELDB_FOUND)

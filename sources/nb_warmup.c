@@ -58,7 +58,6 @@ static void nb_warmup_progressbar(int processed) {
 		printf(" ");
 	printf("] %.2f%%\r", percent);
 	fflush(NULL);
-
 }
 
 int nb_warmup(void)
@@ -86,9 +85,11 @@ int nb_warmup(void)
 			nb_warmup_progressbar(i);
 		}
 	}
-	if (!nb_signaled)
-		nb.db->recv(&db, nb.opts.request_batch_count, &missed);
+	if (!nb_signaled && i < nb.opts.request_batch_count)
+		nb.db->recv(&db, nb.opts.request_batch_count - i, &missed);
 free:
+	printf("\n");
+
 	nb.key->free(&key);
 	nb.db->close(&db);
 	nb.db->free(&db);

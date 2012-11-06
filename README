@@ -14,4 +14,4 @@ Features include:
 * CSV report file generation supported (for future plotting)
 * single configuration file
 * workload tests are specified in percents against a total request count
-* supported database drivers: tarantool, redis, memcache
+* supported database drivers: tarantool, leveldb (redis, memcached planned).
