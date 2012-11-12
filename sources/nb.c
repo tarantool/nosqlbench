@@ -199,7 +199,8 @@ int main(int argc, char *argv[])
 	}
 
 	nb_init();
-	nb.report->report_start();
+	if (nb.report->report_start)
+		nb.report->report_start();
 
 	rc = nb_warmup();
 	if (rc || nb_signaled)

@@ -94,6 +94,7 @@ nb_statistics_set(struct nb_statistics *s, int pos, struct nb_stat *v) {
 
 void nb_statistics_report(struct nb_statistics *s, int workers, int tick);
 void nb_statistics_final(struct nb_statistics *s);
+double nb_statistics_sum(struct nb_statistics *s);
 int nb_statistics_csv(struct nb_statistics *s, char *file);
 
 void nb_history_init(struct nb_history *s, int max);

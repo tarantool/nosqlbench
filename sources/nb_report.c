@@ -53,6 +53,25 @@ static void nb_report_start(void)
 	printf("\n");
 }
 
+static void nb_report_default_progress(int processed, int max)
+{
+	if (processed == 0 && max == 0) {
+		printf("\n\n");
+		return;
+	}
+	float percent = processed * 100.0 / max;
+	int cols = 40;
+	int done = percent * cols / 100.0;
+	int left = cols - done;
+	printf("Warmup [");
+	while (done-- >= 0)
+		printf(".");
+	while (left-- > 0)
+		printf(" ");
+	printf("] %.2f%%\r", percent);
+	fflush(NULL);
+}
+
 static void nb_report_default(void)
 {
 	printf("[%3d sec] [%2d threads] %7d req/s %7d read/s %7d write/s  %.2f ms\n",
@@ -92,6 +111,11 @@ static void nb_report_default_final(void)
 	       nb.stats.final.latency_req_max * 1000.0);
 }
 
+static void nb_report_integral(void)
+{
+	printf("%.2f\n", nb_statistics_sum(&nb.stats));
+}
+
 struct nb_report_if nb_reports[] =
 {
 	{
@@ -100,7 +124,17 @@ struct nb_report_if nb_reports[] =
 		.free = NULL,
 		.report_start = nb_report_start,
 		.report = nb_report_default,
+		.progress = nb_report_default_progress,
 		.report_final = nb_report_default_final
+	},
+	{
+		.name = "integral_sum_only",
+		.init = NULL,
+		.free = NULL,
+		.report_start = NULL,
+		.report = NULL,
+		.progress = NULL,
+		.report_final = nb_report_integral
 	},
 	{
 		.name = NULL

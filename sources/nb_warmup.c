@@ -46,20 +46,6 @@ extern struct nb nb;
 
 extern volatile sig_atomic_t nb_signaled;
 
-static void nb_warmup_progressbar(int processed) {
-	float percent = processed * 100.0 / nb.opts.request_count;
-	int cols = 40;
-	int done = percent * cols / 100.0;
-	int left = cols - done;
-	printf("Warmup [");
-	while (done-- >= 0)
-		printf(".");
-	while (left-- > 0)
-		printf(" ");
-	printf("] %.2f%%\r", percent);
-	fflush(NULL);
-}
-
 int nb_warmup(void)
 {
 	int rc = 0;
@@ -82,13 +68,15 @@ int nb_warmup(void)
 		i++;
 		if (i % nb.opts.request_batch_count == 0 && i > 0) {
 			nb.db->recv(&db, nb.opts.request_batch_count, &missed);
-			nb_warmup_progressbar(i);
+			if (nb.report->progress)
+				nb.report->progress(i, nb.opts.request_count);
 		}
 	}
 	if (!nb_signaled && i < nb.opts.request_batch_count)
 		nb.db->recv(&db, nb.opts.request_batch_count - i, &missed);
 free:
-	printf("\n");
+	if (nb.report->progress)
+		nb.report->progress(0, 0);
 
 	nb.key->free(&key);
 	nb.db->close(&db);

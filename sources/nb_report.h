@@ -36,6 +36,7 @@ struct nb_report_if {
 	void (*free)(void);
 	void (*report_start)(void);
 	void (*report)(void);
+	void (*progress)(int processed, int max);
 	void (*report_final)(void);
 };
 

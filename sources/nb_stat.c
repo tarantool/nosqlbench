@@ -163,6 +163,67 @@ void nb_statistics_final(struct nb_statistics *s)
 	s->final.missed = s->tail->cnt_miss;
 }
 
+static int nb_statistics_min_workers(struct nb_statistics *s) {
+	int min = s->head->workers;
+	struct nb_stat *n = s->head->next;
+	while (n) {
+		if (n->ps_req < min)
+			min = n->workers;
+		n = n->next;
+	}
+	return min;
+}
+
+static int nb_statistics_max_workers(struct nb_statistics *s) {
+	int max = 0;
+	struct nb_stat *n = s->head;
+	while (n) {
+		if (n->ps_req > max)
+			max = n->workers;
+		n = n->next;
+	}
+	return max;
+}
+
+static double
+nb_statistics_integrate(struct nb_statistics *s, int workers) {
+	/* match lower bound */
+	struct nb_stat *start = NULL;
+	struct nb_stat *n = s->head;
+	while (n) {
+		int s = (start == NULL || n->workers >= start->workers);
+		if (n->workers <= workers && s)
+			start = n;
+		n = n->next;
+	}
+	if (start == NULL || start->next == NULL)
+		return 0.0;
+	/* interpolate rps value */
+	double rps = start->ps_req +
+		((workers - start->workers) / (start->next->workers - start->workers)) *
+			(start->next->ps_req - start->ps_req);
+	return rps;
+}
+
+double nb_statistics_sum(struct nb_statistics *s) {
+	double sum = 0.0;
+
+	if (s->count_report <= 1)
+		return 0.0;
+
+	int a = nb_statistics_min_workers(s);
+	int b = nb_statistics_max_workers(s);
+
+	double acq = 1000;
+	double interval = (b - a) / acq;
+	int i;
+	for (i = 1; i<= acq ; i++)
+		sum += nb_statistics_integrate(s, a + interval * (i - 0.5));
+	sum *= interval;
+
+	return sum;
+}
+
 int nb_statistics_csv(struct nb_statistics *s, char *file)
 {
 	FILE *f = fopen(file, "w");

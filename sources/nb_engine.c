@@ -164,7 +164,8 @@ static void nb_report(void)
 {
 	pthread_mutex_lock(&lock_stats);
 	nb_statistics_report(&nb.stats, nb.workers.count, nb.tick);
-	nb.report->report();
+	if (nb.report->report)
+		nb.report->report();
 	pthread_mutex_unlock(&lock_stats);
 }
 
@@ -209,7 +210,9 @@ void nb_engine(void)
 	nb_workers_join(&nb.workers);
 
 	nb_statistics_final(&nb.stats);
-	nb.report->report_final();
+
+	if (nb.report->report_final)
+		nb.report->report_final();
 
 	if (nb.opts.csv_file)
 		nb_statistics_csv(&nb.stats, nb.opts.csv_file);
