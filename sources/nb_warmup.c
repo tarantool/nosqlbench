@@ -55,7 +55,7 @@ int nb_warmup(void)
 	nb.key->init(&key, nb.key_dist);
 
 	nb.db->init(&db, 1);
-	if (nb.db->connect(&db, nb.opts.host, nb.opts.port) == -1) {
+	if (nb.db->connect(&db, &nb.opts) == -1) {
 		rc = 1;
 		goto free;
 	}

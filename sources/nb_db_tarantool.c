@@ -38,6 +38,7 @@
 #include <tarantool/tnt_net.h>
 
 #include "nb_alloc.h"
+#include "nb_opt.h"
 #include "nb_key.h"
 #include "nb_db.h"
 #include "nb_db_tarantool.h"
@@ -69,17 +70,18 @@ static void db_tarantool_free(struct nb_db *db)
 	db->priv = NULL;
 }
 
-static int db_tarantool_connect(struct nb_db *db, char *host, int port)
+static int
+db_tarantool_connect(struct nb_db *db, struct nb_options *opts)
 {
 	struct db_tarantool *t = db->priv;
 	if (tnt_net(&t->s) == NULL) {
 		printf("tnt_stream_net() failed\n");
 		return -1;
 	}
-	tnt_set(&t->s, TNT_OPT_HOSTNAME, host);
-	tnt_set(&t->s, TNT_OPT_PORT, port);
-	tnt_set(&t->s, TNT_OPT_SEND_BUF, 0);
-	tnt_set(&t->s, TNT_OPT_RECV_BUF, 0);
+	tnt_set(&t->s, TNT_OPT_HOSTNAME, opts->host);
+	tnt_set(&t->s, TNT_OPT_PORT, opts->port);
+	tnt_set(&t->s, TNT_OPT_SEND_BUF, opts->buf_send);
+	tnt_set(&t->s, TNT_OPT_RECV_BUF, opts->buf_recv);
 	if (tnt_init(&t->s) == -1)
 		return -1;
 	if (tnt_connect(&t->s) == -1) {
@@ -181,6 +183,7 @@ static int db_tarantool_recv(struct nb_db *db, int count, int *missed)
 {
 	struct db_tarantool *t = db->priv;
 	struct tnt_iter i;
+	tnt_flush(&t->s);
 	tnt_iter_reply(&i, &t->s);
 	while (tnt_next(&i) && count-- >= 0) {
 		struct tnt_reply *r = TNT_IREPLY_PTR(&i);

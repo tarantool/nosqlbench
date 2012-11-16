@@ -77,6 +77,8 @@ struct nb_options {
 
 	char *host;
 	int port;
+	int buf_send;
+	int buf_recv;
 };
 
 void nb_opt_init(struct nb_options *opts);

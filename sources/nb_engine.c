@@ -78,7 +78,7 @@ static void *nb_worker(void *ptr)
 	nb_worker_init();
 
 	nb.db->init(&worker->db, 1);
-	if (nb.db->connect(&worker->db, nb.opts.host, nb.opts.port) == -1)
+	if (nb.db->connect(&worker->db, &nb.opts) == -1)
 		return NULL;
 
 	while (!nb.is_done) {

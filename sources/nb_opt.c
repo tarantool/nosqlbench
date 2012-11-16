@@ -64,6 +64,8 @@ void nb_opt_init(struct nb_options *opts)
 	opts->dist_select = 40;
 	opts->host = nb_strdup("127.0.0.1");
 	opts->port = 33013;
+	opts->buf_send = 16384;
+	opts->buf_recv = 16384;
 }
 
 void nb_opt_free(struct nb_options *opts)

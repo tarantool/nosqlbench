@@ -159,12 +159,12 @@ static void db_leveldb_free(struct nb_db *db)
 	db->priv = NULL;
 }
 
-static int db_leveldb_connect(struct nb_db *db, char *host, int port)
+static int db_leveldb_connect(struct nb_db *db, struct nb_options *opts)
 {
 	if (!instance_initialized) {
 		pthread_mutex_lock(&instance_lock);
 		if (!instance_initialized) {
-			db_leveldb_instance_init(host, port);
+			db_leveldb_instance_init(opts->host, opts->port);
 		}
 
 		instance_initialized = 1;
@@ -175,7 +175,7 @@ static int db_leveldb_connect(struct nb_db *db, char *host, int port)
 		return -1;
 	}
 
-	if (strcmp(instance.host, host) != 0 || instance.port != port) {
+	if (strcmp(instance.host, opts->host) != 0 || instance.port != opts->port) {
 		printf("LevelDB backend does not support different (host, port)");
 		return -1;
 	}
@@ -219,7 +219,7 @@ static int db_leveldb_insert(struct nb_db *db, struct nb_key *key)
 	char *err = NULL;
 
 	leveldb_put(t->instance->db, t->instance->woptions, key->data, key->size,
-				t->value, t->value_size, &err);
+		    t->value, t->value_size, &err);
 	if (err != NULL) {
 		printf("leveldb_put() failed: %s\n", err);
 		return -1;
@@ -235,14 +235,14 @@ static int db_leveldb_replace(struct nb_db *db, struct nb_key *key)
 	char *err = NULL;
 
 	leveldb_delete(t->instance->db, t->instance->woptions,
-				   key->data, key->size, &err);
+		       key->data, key->size, &err);
 	if (err != NULL) {
 		printf("leveldb_delete() failed: %s\n", err);
 		return -1;
 	}
 
 	leveldb_put(t->instance->db, t->instance->woptions, key->data, key->size,
-				t->value, t->value_size, &err);
+		    t->value, t->value_size, &err);
 	if (err != NULL) {
 		printf("leveldb_put() failed: %s\n", err);
 		return -1;
@@ -268,7 +268,8 @@ static int db_leveldb_delete(struct nb_db *db, struct nb_key *key)
 	char *err = NULL;
 
 	leveldb_delete(t->instance->db, t->instance->woptions,
-				   key->data, key->size, &err);
+		       key->data,
+		       key->size, &err);
 	if (err != NULL) {
 		printf("leveldb_delete() failed: %s\n", err);
 		return -1;
@@ -287,8 +288,8 @@ static int db_leveldb_select(struct nb_db *db, struct nb_key *key)
 	size_t value_size;
 	char* value;
 	value = leveldb_get(t->instance->db, t->instance->roptions,
-						key->data, key->size,
-						&value_size, &err);
+			    key->data, key->size,
+			    &value_size, &err);
 	if (value) {
 		free(value);
 	}

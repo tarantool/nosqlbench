@@ -96,7 +96,9 @@ enum {
 	NB_TK_DELETE,
 	NB_TK_SELECT,
 	NB_TK_SERVER,
-	NB_TK_PORT
+	NB_TK_PORT,
+	NB_TK_BUF_RECV,
+	NB_TK_BUF_SEND
 };
 
 #define NB_DECLARE_KEYWORD_DEF(NAME, ID) { NAME, sizeof(NAME) - 1, ID }
@@ -130,6 +132,8 @@ static struct tnt_lex_keyword nb_lex_keywords[] =
 	NB_DECLARE_KEYWORD("test_select", NB_TK_SELECT),
 	NB_DECLARE_KEYWORD("server", NB_TK_SERVER),
 	NB_DECLARE_KEYWORD("port", NB_TK_PORT),
+	NB_DECLARE_KEYWORD("buf_recv", NB_TK_BUF_RECV),
+	NB_DECLARE_KEYWORD("buf_send", NB_TK_BUF_SEND),
 	NB_DECLARE_KEYWORD_END()
 };
 
@@ -167,6 +171,8 @@ struct nb_config_index nb_config_index[] =
 	NB_DECLARE_OPT_INT(NB_TK_SELECT, &nb.opts.dist_select),
 	NB_DECLARE_OPT_STR(NB_TK_SERVER, &nb.opts.host),
 	NB_DECLARE_OPT_INT(NB_TK_PORT, &nb.opts.port),
+	NB_DECLARE_OPT_INT(NB_TK_BUF_RECV, &nb.opts.buf_recv),
+	NB_DECLARE_OPT_INT(NB_TK_BUF_SEND, &nb.opts.buf_send),
 	NB_DECLARE_OPT_END()
 };
 

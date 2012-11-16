@@ -39,7 +39,7 @@ struct nb_db_if {
 	const char *name;
 	int (*init)(struct nb_db *db, size_t value_size);
 	void (*free)(struct nb_db *db);
-	int (*connect)(struct nb_db *db, char *host, int port);
+	int (*connect)(struct nb_db *db, struct nb_options *opts);
 	void (*close)(struct nb_db *db);
 	int (*recv)(struct nb_db *db, int count, int *missed);
 	nb_db_reqf_t insert;
