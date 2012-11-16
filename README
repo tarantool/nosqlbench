@@ -11,7 +11,8 @@ Features include:
 * different threads creation policies: at once or interleaved
 * key distribution supported: uniform, gaussian
 * key types supported: string, u32, u64
-* CSV report file generation supported (for future plotting)
+* CSV report file generation supported (for future plot generation)
 * single configuration file
 * workload tests are specified in percents against a total request count
 * supported database drivers: tarantool, leveldb (redis, memcached planned).
+* plotter tool (CSV to GNU Plot generation)
