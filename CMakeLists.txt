@@ -29,3 +29,4 @@ include_directories("${PROJECT_SOURCE_DIR}/sources")
 include_directories("${TARANTOOL_INCLUDE_DIR}")
 
 add_subdirectory(sources)
+add_subdirectory(plotter)
