@@ -11,3 +11,5 @@ Makefile
 .build_config
 Temp/
 *-build*/
+plotter/nb_plotter
+sources/nb
