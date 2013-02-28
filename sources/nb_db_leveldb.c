@@ -39,6 +39,7 @@
 
 #include "nb_alloc.h"
 #include "nb_key.h"
+#include "nb_opt.h"
 #include "nb_db.h"
 #include "nb_db_leveldb.h"
 
