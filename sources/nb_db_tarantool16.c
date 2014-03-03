@@ -215,6 +215,44 @@ static int db_tarantool16_delete(struct nb_db *db, struct nb_key *key)
 	return 0;
 }
 
+static int db_tarantool16_update(struct nb_db *db, struct nb_key *key)
+{
+	struct db_tarantool16 *t = db->priv;
+	char *p = t->buf + 5;
+	p = mp_encode_map(p, 1);
+	p = mp_encode_uint(p, TB_CODE);
+	p = mp_encode_uint(p, TB_UPDATE);
+	p = mp_encode_map(p, 3);
+	p = mp_encode_uint(p, TB_SPACE);
+	p = mp_encode_uint(p, 0);
+	p = mp_encode_uint(p, TB_KEY);
+	p = mp_encode_array(p, 1);
+	switch (key->size) {
+	case 4: p = mp_encode_uint(p, *(uint32_t*)key->data);
+		break;
+	case 8: p = mp_encode_uint(p, *(uint64_t*)key->data);
+		break;
+	default:
+		p = mp_encode_str(p, key->data, key->size);
+		break;
+	}
+	p = mp_encode_uint(p, TB_TUPLE);
+	p = mp_encode_array(p, 1);
+	p = mp_encode_array(p, 3);
+	p = mp_encode_str(p, "=", 1);
+	p = mp_encode_uint(p, 1);
+	p = mp_encode_str(p, t->value, t->value_size);
+	uint32_t size = p - t->buf;
+	assert(size <= t->buf_size);
+	*t->buf = 0xce;
+	*(uint32_t*)(t->buf+1) = mp_bswap_u32(size - 5);
+	int rc = tb_sessend(&t->s, t->buf, size);
+	if (rc == -1)
+		return -1;
+	db_tarantool16_inc(db);
+	return 0;
+}
+
 static int db_tarantool16_select(struct nb_db *db, struct nb_key *key)
 {
 	struct db_tarantool16 *t = db->priv;
@@ -294,119 +332,6 @@ static int db_tarantool16_recv(struct nb_db *db, int count, int *missed)
 	return 0;
 }
 
-#if 0
-static int db_tarantool16_insert(struct nb_db *db, struct nb_key *key)
-{
-	struct db_tarantool16 *t = db->priv;
-	struct tnt_tuple tu;
-	tnt_tuple_init(&tu);
-	tnt_tuple_add(&tu, key->data, key->size);
-	tnt_tuple_add(&tu, t->value, t->value_size);
-	if (tnt_insert(&t->s, 0, 0, &tu) == -1) {
-		tnt_tuple_free(&tu);
-		return -1;
-	}
-	tnt_tuple_free(&tu);
-	return 0;
-}
-
-static int db_tarantool16_replace(struct nb_db *db, struct nb_key *key)
-{
-	struct db_tarantool16 *t = db->priv;
-	struct tnt_tuple tu;
-	tnt_tuple_init(&tu);
-	tnt_tuple_add(&tu, key->data, key->size);
-	tnt_tuple_add(&tu, t->value, t->value_size);
-	if (tnt_insert(&t->s, 0, TNT_FLAG_REPLACE, &tu) == -1) {
-		tnt_tuple_free(&tu);
-		return -1;
-	}
-	tnt_tuple_free(&tu);
-	return 0;
-}
-
-static int db_tarantool16_update(struct nb_db *db, struct nb_key *key)
-{
-	struct db_tarantool16 *t = db->priv;
-	struct tnt_tuple tu;
-	tnt_tuple_init(&tu);
-	tnt_tuple_add(&tu, key->data, key->size);
-	struct tnt_stream u;
-	tnt_buf(&u);
-	tnt_update_assign(&u, 1, t->value, t->value_size);
-	if (tnt_update(&t->s, 0, 0, &tu, &u) == -1) {
-		tnt_stream_free(&u);
-		tnt_tuple_free(&tu);
-		return -1;
-	}
-	tnt_stream_free(&u);
-	tnt_tuple_free(&tu);
-	return 0;
-}
-
-static int db_tarantool16_delete(struct nb_db *db, struct nb_key *key)
-{
-	struct db_tarantool16 *t = db->priv;
-	struct tnt_tuple tu;
-	tnt_tuple_init(&tu);
-	tnt_tuple_add(&tu, key->data, key->size);
-	if (tnt_delete(&t->s, 0, 0, &tu) == -1) {
-		tnt_tuple_free(&tu);
-		return -1;
-	}
-	tnt_tuple_free(&tu);
-	return 0;
-}
-
-static int db_tarantool16_select(struct nb_db *db, struct nb_key *key)
-{
-	struct db_tarantool16 *t = db->priv;
-	struct tnt_tuple tu;
-	tnt_tuple_init(&tu);
-	tnt_tuple_add(&tu, key->data, key->size);
-	struct tnt_list l;
-	memset(&l, 0, sizeof(l));
-	tnt_list_at(&l, &tu);
-	if (tnt_select(&t->s, 0, 0, 0, 100, &l) == -1) {
-		tnt_list_free(&l);
-		tnt_tuple_free(&tu);
-		return -1;
-	}
-	tnt_list_free(&l);
-	tnt_tuple_free(&tu);
-	return 0;
-}
-
-static int db_tarantool16_recv(struct nb_db *db, int count, int *missed)
-{
-	struct db_tarantool16 *t = db->priv;
-	struct tnt_iter i;
-	tnt_flush(&t->s);
-	tnt_iter_reply(&i, &t->s);
-	while (tnt_next(&i) && count-- >= 0) {
-		struct tnt_reply *r = TNT_IREPLY_PTR(&i);
-		if (tnt_error(&t->s) != TNT_EOK) {
-			printf("error, %s\n", tnt_strerror(&t->s));
-		} else if (r->code != 0) {
-			if (r->code == 12546) /* tuple is missing */
-				*missed = *missed + 1;
-			else
-				printf("server respond: %s (op: %"PRIu32", reqid: %"PRIu32", "
-				       "code: %"PRIu32", count: %"PRIu32")\n",
-					(r->error) ? r->error : "",
-					r->op,
-					r->reqid,
-					r->code,
-					r->count);
-		}
-	}
-	if (i.status == TNT_ITER_FAIL)
-		printf("recv failed: %s\n", tnt_strerror(&t->s));
-	tnt_iter_free(&i);
-	return 0;
-}
-#endif
-
 struct nb_db_if nb_db_tarantool16 =
 {
 	.name    = "tarantool1_6",
@@ -417,10 +342,7 @@ struct nb_db_if nb_db_tarantool16 =
 	.insert  = db_tarantool16_insert,
 	.replace = db_tarantool16_replace,
 	.del     = db_tarantool16_delete,
+	.update  = db_tarantool16_update,
 	.select  = db_tarantool16_select,
 	.recv    = db_tarantool16_recv
-
-	/*
-	.update  = db_tarantool16_update,
-	*/
 };
