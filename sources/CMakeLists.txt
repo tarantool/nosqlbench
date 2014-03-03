@@ -1,6 +1,6 @@
 set(nb_bin nb)
 
-set(nb_libs "${TARANTOOL_LIB}" "${TARANTOOLNET_LIB}" "${TARANTOOLSQL_LIB}" ${M_LIB})
+set(nb_libs ${TARANTOOL_LIB} ${TARANTOOLNET_LIB} ${TARANTOOLSQL_LIB} tb ${M_LIB})
 set(nb_src
 	nb_alloc.h
 	nb.c
@@ -8,8 +8,10 @@ set(nb_src
 	nb_config.h
 	nb_db.c
 	nb_db.h
-	nb_db_tarantool.c
-	nb_db_tarantool.h
+	nb_db_tarantool15.c
+	nb_db_tarantool15.h
+	nb_db_tarantool16.c
+	nb_db_tarantool16.h
 	nb_engine.c
 	nb_engine.h
 	nb.h

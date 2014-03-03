@@ -40,7 +40,8 @@
 #include "nb_opt.h"
 #include "nb_key.h"
 #include "nb_db.h"
-#include "nb_db_tarantool.h"
+#include "nb_db_tarantool15.h"
+#include "nb_db_tarantool16.h"
 #if defined(HAVE_LEVELDB)
 #include "nb_db_leveldb.h"
 #endif
@@ -50,14 +51,15 @@
 
 struct nb_db_if *nb_dbs[] =
 {
-	&nb_db_tarantool,
+	&nb_db_tarantool15,
+	&nb_db_tarantool16,
 #if defined(HAVE_LEVELDB)
 	&nb_db_leveldb,
 #endif
 #if defined(HAVE_NESSDB_V1) || defined(HAVE_NESSDB_V2)
 	&nb_db_nessdb,
 #endif
-	NULL,
+	NULL
 };
 
 struct nb_db_if *nb_db_match(const char *name)

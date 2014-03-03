@@ -1,5 +1,5 @@
-#ifndef NB_DB_TARANTOOL_H_INCLUDED
-#define NB_DB_TARANTOOL_H_INCLUDED
+#ifndef NB_DB_TARANTOOL16_H_INCLUDED
+#define NB_DB_TARANTOOL16_H_INCLUDED
 
 /*
  * Redistribution and use in source and binary forms, with or
@@ -30,6 +30,6 @@
  * SUCH DAMAGE.
  */
 
-extern struct nb_db_if nb_db_tarantool;
+extern struct nb_db_if nb_db_tarantool16;
 
 #endif

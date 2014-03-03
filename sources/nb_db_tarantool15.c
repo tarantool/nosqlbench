@@ -41,18 +41,18 @@
 #include "nb_opt.h"
 #include "nb_key.h"
 #include "nb_db.h"
-#include "nb_db_tarantool.h"
+#include "nb_db_tarantool15.h"
 
-struct db_tarantool {
+struct db_tarantool15 {
 	struct tnt_stream s;
 	char *value;
 	size_t value_size;
 };
 
-static int db_tarantool_init(struct nb_db *db, size_t value_size) {
-	db->priv = nb_malloc(sizeof(struct db_tarantool));
-	memset(db->priv, 0, sizeof(struct db_tarantool));
-	struct db_tarantool *t = db->priv;
+static int db_tarantool15_init(struct nb_db *db, size_t value_size) {
+	db->priv = nb_malloc(sizeof(struct db_tarantool15));
+	memset(db->priv, 0, sizeof(struct db_tarantool15));
+	struct db_tarantool15 *t = db->priv;
 	t->value_size = value_size;
 	t->value = nb_malloc(t->value_size);
 	memset(t->value, '#', t->value_size - 1);
@@ -60,9 +60,9 @@ static int db_tarantool_init(struct nb_db *db, size_t value_size) {
 	return 0;
 }
 
-static void db_tarantool_free(struct nb_db *db)
+static void db_tarantool15_free(struct nb_db *db)
 {
-	struct db_tarantool *t = db->priv;
+	struct db_tarantool15 *t = db->priv;
 	tnt_stream_free(&t->s);
 	if (t->value)
 		free(t->value);
@@ -71,9 +71,9 @@ static void db_tarantool_free(struct nb_db *db)
 }
 
 static int
-db_tarantool_connect(struct nb_db *db, struct nb_options *opts)
+db_tarantool15_connect(struct nb_db *db, struct nb_options *opts)
 {
-	struct db_tarantool *t = db->priv;
+	struct db_tarantool15 *t = db->priv;
 	if (tnt_net(&t->s) == NULL) {
 		printf("tnt_stream_net() failed\n");
 		return -1;
@@ -91,15 +91,15 @@ db_tarantool_connect(struct nb_db *db, struct nb_options *opts)
 	return 0;
 }
 
-static void db_tarantool_close(struct nb_db *db)
+static void db_tarantool15_close(struct nb_db *db)
 {
-	struct db_tarantool *t = db->priv;
+	struct db_tarantool15 *t = db->priv;
 	tnt_close(&t->s);
 }
 
-static int db_tarantool_insert(struct nb_db *db, struct nb_key *key)
+static int db_tarantool15_insert(struct nb_db *db, struct nb_key *key)
 {
-	struct db_tarantool *t = db->priv;
+	struct db_tarantool15 *t = db->priv;
 	struct tnt_tuple tu;
 	tnt_tuple_init(&tu);
 	tnt_tuple_add(&tu, key->data, key->size);
@@ -112,9 +112,9 @@ static int db_tarantool_insert(struct nb_db *db, struct nb_key *key)
 	return 0;
 }
 
-static int db_tarantool_replace(struct nb_db *db, struct nb_key *key)
+static int db_tarantool15_replace(struct nb_db *db, struct nb_key *key)
 {
-	struct db_tarantool *t = db->priv;
+	struct db_tarantool15 *t = db->priv;
 	struct tnt_tuple tu;
 	tnt_tuple_init(&tu);
 	tnt_tuple_add(&tu, key->data, key->size);
@@ -127,9 +127,9 @@ static int db_tarantool_replace(struct nb_db *db, struct nb_key *key)
 	return 0;
 }
 
-static int db_tarantool_update(struct nb_db *db, struct nb_key *key)
+static int db_tarantool15_update(struct nb_db *db, struct nb_key *key)
 {
-	struct db_tarantool *t = db->priv;
+	struct db_tarantool15 *t = db->priv;
 	struct tnt_tuple tu;
 	tnt_tuple_init(&tu);
 	tnt_tuple_add(&tu, key->data, key->size);
@@ -146,9 +146,9 @@ static int db_tarantool_update(struct nb_db *db, struct nb_key *key)
 	return 0;
 }
 
-static int db_tarantool_delete(struct nb_db *db, struct nb_key *key)
+static int db_tarantool15_delete(struct nb_db *db, struct nb_key *key)
 {
-	struct db_tarantool *t = db->priv;
+	struct db_tarantool15 *t = db->priv;
 	struct tnt_tuple tu;
 	tnt_tuple_init(&tu);
 	tnt_tuple_add(&tu, key->data, key->size);
@@ -160,9 +160,9 @@ static int db_tarantool_delete(struct nb_db *db, struct nb_key *key)
 	return 0;
 }
 
-static int db_tarantool_select(struct nb_db *db, struct nb_key *key)
+static int db_tarantool15_select(struct nb_db *db, struct nb_key *key)
 {
-	struct db_tarantool *t = db->priv;
+	struct db_tarantool15 *t = db->priv;
 	struct tnt_tuple tu;
 	tnt_tuple_init(&tu);
 	tnt_tuple_add(&tu, key->data, key->size);
@@ -179,9 +179,9 @@ static int db_tarantool_select(struct nb_db *db, struct nb_key *key)
 	return 0;
 }
 
-static int db_tarantool_recv(struct nb_db *db, int count, int *missed)
+static int db_tarantool15_recv(struct nb_db *db, int count, int *missed)
 {
-	struct db_tarantool *t = db->priv;
+	struct db_tarantool15 *t = db->priv;
 	struct tnt_iter i;
 	tnt_flush(&t->s);
 	tnt_iter_reply(&i, &t->s);
@@ -208,17 +208,17 @@ static int db_tarantool_recv(struct nb_db *db, int count, int *missed)
 	return 0;
 }
 
-struct nb_db_if nb_db_tarantool =
+struct nb_db_if nb_db_tarantool15 =
 {
-	.name    = "tarantool",
-	.init    = db_tarantool_init,
-	.free    = db_tarantool_free,
-	.connect = db_tarantool_connect,
-	.close   = db_tarantool_close,
-	.insert  = db_tarantool_insert,
-	.replace = db_tarantool_replace,
-	.del     = db_tarantool_delete,
-	.update  = db_tarantool_update,
-	.select  = db_tarantool_select,
-	.recv    = db_tarantool_recv
+	.name    = "tarantool1_5",
+	.init    = db_tarantool15_init,
+	.free    = db_tarantool15_free,
+	.connect = db_tarantool15_connect,
+	.close   = db_tarantool15_close,
+	.insert  = db_tarantool15_insert,
+	.replace = db_tarantool15_replace,
+	.del     = db_tarantool15_delete,
+	.update  = db_tarantool15_update,
+	.select  = db_tarantool15_select,
+	.recv    = db_tarantool15_recv
 };

@@ -69,7 +69,7 @@ nb_plot_append(struct nb_plot *p) {
 	struct nb_plot_metric *m = malloc(sizeof(struct nb_plot_metric));
 	if (m == NULL)
 		return NULL;
-	memset(m, 0, sizeof(m));
+	memset(m, 0, sizeof(*m));
 	if (p->head == NULL)
 		p->head = m;
 	else
