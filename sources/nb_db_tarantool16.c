@@ -34,11 +34,8 @@
 #include <string.h>
 #include <stdio.h>
 
-#define MP_SOURCE 1
-#include <msgpuck.h>
-
-#include <lib/tarantool.h>
-#include <lib/iproto.h>
+#include "lib/tp.h"
+#include "lib/session.h"
 
 #include "nb_alloc.h"
 #include "nb_opt.h"
@@ -52,22 +49,7 @@ struct db_tarantool16 {
 	size_t value_size;
 	char *buf;
 	size_t buf_size;
-	int await;
 };
-
-static inline void
-db_tarantool16_inc(struct nb_db *db)
-{
-	struct db_tarantool16 *t = db->priv;
-	t->await++;
-}
-
-static inline void
-db_tarantool16_dec(struct nb_db *db)
-{
-	struct db_tarantool16 *t = db->priv;
-	t->await--;
-}
 
 static int db_tarantool16_init(struct nb_db *db, size_t value_size) {
 	db->priv = nb_malloc(sizeof(struct db_tarantool16));
@@ -87,6 +69,7 @@ static void db_tarantool16_free(struct nb_db *db)
 {
 	struct db_tarantool16 *t = db->priv;
 	tb_sesclose(&t->s);
+	tb_sesfree(&t->s);
 	if (t->value)
 		free(t->value);
 	if (t->buf)
@@ -108,6 +91,8 @@ db_tarantool16_connect(struct nb_db *db, struct nb_options *opts)
 		printf("tnt_connect() failed: %d\n", t->s.errno_);
 		return -1;
 	}
+	char greet[128];
+	tb_sesrecv(&t->s, greet, 128, 1);
 	return 0;
 }
 
@@ -120,170 +105,140 @@ static void db_tarantool16_close(struct nb_db *db)
 static int db_tarantool16_insert(struct nb_db *db, struct nb_key *key)
 {
 	struct db_tarantool16 *t = db->priv;
-	char *p = t->buf + 5;
-	p = mp_encode_map(p, 1);
-	p = mp_encode_uint(p, TB_CODE);
-	p = mp_encode_uint(p, TB_INSERT);
-	p = mp_encode_map(p, 2);
-	p = mp_encode_uint(p, TB_SPACE);
-	p = mp_encode_uint(p, 0);
-	p = mp_encode_uint(p, TB_TUPLE);
-	p = mp_encode_array(p, 2);
+
+	struct tp req;
+	tp_init(&req, t->buf, t->buf_size, NULL, NULL);
+	tp_insert(&req, 512);
+	tp_tuple(&req, 2);
 	switch (key->size) {
-	case 4: p = mp_encode_uint(p, *(uint32_t*)key->data);
+	case 4:
+		tp_encode_uint(&req, *(uint32_t*)key->data);
 		break;
-	case 8: p = mp_encode_uint(p, *(uint64_t*)key->data);
+	case 8:
+		tp_encode_uint(&req, *(uint64_t*)key->data);
 		break;
 	default:
-		p = mp_encode_str(p, key->data, key->size);
+		tp_encode_str(&req, key->data, key->size);
 		break;
 	}
-	p = mp_encode_str(p, t->value, t->value_size);
-	uint32_t size = p - t->buf;
+	tp_encode_str(&req, t->value, t->value_size);
+	uint32_t size = tp_used(&req);
 	assert(size <= t->buf_size);
-	*t->buf = 0xce;
-	*(uint32_t*)(t->buf+1) = mp_bswap_u32(size - 5);
 	int rc = tb_sessend(&t->s, t->buf, size);
 	if (rc == -1)
 		return -1;
-	db_tarantool16_inc(db);
 	return 0;
 }
 
 static int db_tarantool16_replace(struct nb_db *db, struct nb_key *key)
 {
 	struct db_tarantool16 *t = db->priv;
-	char *p = t->buf + 5;
-	p = mp_encode_map(p, 1);
-	p = mp_encode_uint(p, TB_CODE);
-	p = mp_encode_uint(p, TB_REPLACE);
-	p = mp_encode_map(p, 2);
-	p = mp_encode_uint(p, TB_SPACE);
-	p = mp_encode_uint(p, 0);
-	p = mp_encode_uint(p, TB_TUPLE);
-	p = mp_encode_array(p, 2);
+
+	struct tp req;
+	tp_init(&req, t->buf, t->buf_size, NULL, NULL);
+	tp_replace(&req, 512);
+	tp_tuple(&req, 2);
 	switch (key->size) {
-	case 4: p = mp_encode_uint(p, *(uint32_t*)key->data);
+	case 4:
+		tp_encode_uint(&req, *(uint32_t*)key->data);
 		break;
-	case 8: p = mp_encode_uint(p, *(uint64_t*)key->data);
+	case 8:
+		tp_encode_uint(&req, *(uint64_t*)key->data);
 		break;
 	default:
-		p = mp_encode_str(p, key->data, key->size);
+		tp_encode_str(&req, key->data, key->size);
 		break;
 	}
-	p = mp_encode_str(p, t->value, t->value_size);
-	uint32_t size = p - t->buf;
+	tp_encode_str(&req, t->value, t->value_size);
+	uint32_t size = tp_used(&req);
 	assert(size <= t->buf_size);
-	*t->buf = 0xce;
-	*(uint32_t*)(t->buf+1) = mp_bswap_u32(size - 5);
 	int rc = tb_sessend(&t->s, t->buf, size);
 	if (rc == -1)
 		return -1;
-	db_tarantool16_inc(db);
 	return 0;
 }
 
 static int db_tarantool16_delete(struct nb_db *db, struct nb_key *key)
 {
 	struct db_tarantool16 *t = db->priv;
-	char *p = t->buf + 5;
-	p = mp_encode_map(p, 1);
-	p = mp_encode_uint(p, TB_CODE);
-	p = mp_encode_uint(p, TB_REPLACE);
-	p = mp_encode_map(p, 2);
-	p = mp_encode_uint(p, TB_SPACE);
-	p = mp_encode_uint(p, 0);
-	p = mp_encode_uint(p, TB_KEY);
-	p = mp_encode_array(p, 1);
+
+	struct tp req;
+	tp_init(&req, t->buf, t->buf_size, NULL, NULL);
+	tp_delete(&req, 512);
+	tp_key(&req, 1);
 	switch (key->size) {
-	case 4: p = mp_encode_uint(p, *(uint32_t*)key->data);
+	case 4:
+		tp_encode_uint(&req, *(uint32_t*)key->data);
 		break;
-	case 8: p = mp_encode_uint(p, *(uint64_t*)key->data);
+	case 8:
+		tp_encode_uint(&req, *(uint64_t*)key->data);
 		break;
 	default:
-		p = mp_encode_str(p, key->data, key->size);
+		tp_encode_str(&req, key->data, key->size);
 		break;
 	}
-	uint32_t size = p - t->buf;
+	uint32_t size = tp_used(&req);
 	assert(size <= t->buf_size);
-	*t->buf = 0xce;
-	*(uint32_t*)(t->buf+1) = mp_bswap_u32(size - 5);
 	int rc = tb_sessend(&t->s, t->buf, size);
 	if (rc == -1)
 		return -1;
-	db_tarantool16_inc(db);
 	return 0;
 }
 
 static int db_tarantool16_update(struct nb_db *db, struct nb_key *key)
 {
 	struct db_tarantool16 *t = db->priv;
-	char *p = t->buf + 5;
-	p = mp_encode_map(p, 1);
-	p = mp_encode_uint(p, TB_CODE);
-	p = mp_encode_uint(p, TB_UPDATE);
-	p = mp_encode_map(p, 3);
-	p = mp_encode_uint(p, TB_SPACE);
-	p = mp_encode_uint(p, 0);
-	p = mp_encode_uint(p, TB_KEY);
-	p = mp_encode_array(p, 1);
+
+	struct tp req;
+	tp_init(&req, t->buf, t->buf_size, NULL, NULL);
+	tp_update(&req, 512);
+	tp_key(&req, 1);
 	switch (key->size) {
-	case 4: p = mp_encode_uint(p, *(uint32_t*)key->data);
+	case 4:
+		tp_encode_uint(&req, *(uint32_t*)key->data);
 		break;
-	case 8: p = mp_encode_uint(p, *(uint64_t*)key->data);
+	case 8:
+		tp_encode_uint(&req, *(uint64_t*)key->data);
 		break;
 	default:
-		p = mp_encode_str(p, key->data, key->size);
+		tp_encode_str(&req, key->data, key->size);
 		break;
 	}
-	p = mp_encode_uint(p, TB_TUPLE);
-	p = mp_encode_array(p, 1);
-	p = mp_encode_array(p, 3);
-	p = mp_encode_str(p, "=", 1);
-	p = mp_encode_uint(p, 1);
-	p = mp_encode_str(p, t->value, t->value_size);
-	uint32_t size = p - t->buf;
+	tp_updatebegin(&req, 1);
+	tp_op(&req, '=', 2);
+	tp_encode_str(&req, t->value, t->value_size);
+	uint32_t size = tp_used(&req);
 	assert(size <= t->buf_size);
-	*t->buf = 0xce;
-	*(uint32_t*)(t->buf+1) = mp_bswap_u32(size - 5);
 	int rc = tb_sessend(&t->s, t->buf, size);
 	if (rc == -1)
 		return -1;
-	db_tarantool16_inc(db);
 	return 0;
 }
 
 static int db_tarantool16_select(struct nb_db *db, struct nb_key *key)
 {
 	struct db_tarantool16 *t = db->priv;
-	char *p = t->buf + 5;
-	p = mp_encode_map(p, 1);
-	p = mp_encode_uint(p, TB_CODE);
-	p = mp_encode_uint(p, TB_SELECT);
-	p = mp_encode_map(p, 3);
-	p = mp_encode_uint(p, TB_SPACE);
-	p = mp_encode_uint(p, 0);
-	p = mp_encode_uint(p, TB_INDEX);
-	p = mp_encode_uint(p, 0);
-	p = mp_encode_uint(p, TB_KEY);
-	p = mp_encode_array(p, 1);
+
+	struct tp req;
+	tp_init(&req, t->buf, t->buf_size, NULL, NULL);
+	tp_select(&req, 512, 0, 0, 1);
+	tp_key(&req, 1);
 	switch (key->size) {
-	case 4: p = mp_encode_uint(p, *(uint32_t*)key->data);
+	case 4:
+		tp_encode_uint(&req, *(uint32_t*)key->data);
 		break;
-	case 8: p = mp_encode_uint(p, *(uint64_t*)key->data);
+	case 8:
+		tp_encode_uint(&req, *(uint64_t*)key->data);
 		break;
 	default:
-		p = mp_encode_str(p, key->data, key->size);
+		tp_encode_str(&req, key->data, key->size);
 		break;
 	}
-	uint32_t size = p - t->buf;
+	uint32_t size = tp_used(&req);
 	assert(size <= t->buf_size);
-	*t->buf = 0xce;
-	*(uint32_t*)(t->buf+1) = mp_bswap_u32(size - 5);
 	int rc = tb_sessend(&t->s, t->buf, size);
 	if (rc == -1)
 		return -1;
-	db_tarantool16_inc(db);
 	return 0;
 }
 
@@ -292,17 +247,19 @@ static int db_tarantool16_recv(struct nb_db *db, int count, int *missed)
 	(void)missed;
 	struct db_tarantool16 *t = db->priv;
 	int rc = tb_sessync(&t->s);
-	if (rc == -1)
+	if (rc == -1) {
+		printf("sync failed\n");
 		return -1;
-	while (t->await > 0 && count >= 0)
+	}
+	while (count > 0)
 	{
-		ssize_t len = tb_sesrecv(&t->s, t->buf, 5, 5);
-		if (len == -1) {
+		ssize_t len = tb_sesrecv(&t->s, t->buf, 5, 1);
+		if (len < 5) {
 			printf("recv failed\n");
 			return 0;
 		}
 		if (mp_typeof(*t->buf) != MP_UINT) {
-			printf("bady reply len type\n");
+			printf("bad reply len type\n");
 			return 0;
 		}
 		const char *p = t->buf;
@@ -311,21 +268,20 @@ static int db_tarantool16_recv(struct nb_db *db, int count, int *missed)
 			printf("reply buffer is too big\n");
 			return -1;
 		}
-		len = tb_sesrecv(&t->s, t->buf + 5, body, body);
-		if (len == -1) {
+		len = tb_sesrecv(&t->s, t->buf + 5, body, 1);
+		if (len < body) {
 			printf("recv failed\n");
-			return 0;
+			return -1;
 		}
-		struct tbresponse rp;
-		int64_t r = tb_response(&rp, t->buf, 5 + body);
+		struct tpresponse rp;
+		int64_t r = tp_reply(&rp, t->buf, 5 + body);
 		if (r == -1) {
 			printf("failed to parse response\n");
-			return 0;
+			return -1;
 		}
 		if (rp.code != 0)
 			printf("server respond: %d, %-.*s\n", rp.code,
 			       (int)(rp.error_end - rp.error), rp.error);
-		t->await--;
 		count--;
 	}
 

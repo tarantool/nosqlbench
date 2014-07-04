@@ -266,8 +266,8 @@ unsigned long long nb_history_time(void)
 	unsigned long long tm;
 	struct timeval tv;
 	gettimeofday(&tv, NULL);
-	tm = ((long)tv.tv_sec) * 1000;
-	tm += tv.tv_usec / 1000;
+	tm = ((long long)tv.tv_sec) * 1000000;
+	tm += tv.tv_usec;
 	return tm;
 }
 
@@ -296,12 +296,13 @@ void nb_history_account(struct nb_history *s, int batch)
 
 	struct nb_stat *current = &s->S[s->Scurrent];
 
-	current->latency_batch = s->tm_diff / 1000.0;
+	current->latency_batch = s->tm_diff / 1000000.0;
 	current->latency_req = current->latency_batch / batch;
 	current->ps_req = (current->cnt_read + current->cnt_write) /
 		           current->latency_batch;
 	current->ps_read = current->cnt_read / current->latency_batch;
 	current->ps_write = current->cnt_write / current->latency_batch;
+
 	current->cnt_read = 0;
 	current->cnt_write = 0;
 

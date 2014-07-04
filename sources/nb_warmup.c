@@ -66,20 +66,22 @@ int nb_warmup(void)
 		nb.key->generate_by_id(&key, i);
 		nb.db->insert(&db, &key);
 		i++;
-		if (i % nb.opts.request_batch_count == 0 && i > 0) {
-			nb.db->recv(&db, nb.opts.request_batch_count, &missed);
+		if (i % nb.opts.request_batch_count == 0) {
+			if (nb.db->recv(&db, nb.opts.request_batch_count, &missed) == -1)
+				goto free;
 			if (nb.report->progress)
 				nb.report->progress(i, nb.opts.request_count);
 		}
 	}
-	if (!nb_signaled && i < nb.opts.request_batch_count)
-		nb.db->recv(&db, nb.opts.request_batch_count - i, &missed);
+	if (!nb_signaled && i % nb.opts.request_batch_count)
+		if (nb.db->recv(&db, i % nb.opts.request_batch_count, &missed) == -1)
+			goto free;
 free:
 	if (nb.report->progress)
 		nb.report->progress(0, 0);
 
-	nb.key->free(&key);
 	nb.db->close(&db);
 	nb.db->free(&db);
+	nb.key->free(&key);
 	return rc;
 }
