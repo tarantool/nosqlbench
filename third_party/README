@@ -1,0 +1,2 @@
+tarantool-c is a new connector (1.6, but it speaks 1.5 too)
+tarantool is the old connector (1.5, originally in the master tree)

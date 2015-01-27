@@ -1,6 +1,6 @@
 set(nb_bin nb)
 
-set(nb_libs ${TARANTOOL_LIB} ${TARANTOOLNET_LIB} ${TARANTOOLSQL_LIB} tb ${M_LIB})
+set(nb_libs tnt tntnet tntsql tb ${M_LIB})
 set(nb_src
 	nb_alloc.h
 	nb.c

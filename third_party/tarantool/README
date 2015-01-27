@@ -1,0 +1,7 @@
+
+.------------------------------.
+| Tarantool C client libraries |
+`------------------------------'
+
+tnt    - tarantool iproto library
+tntnet - tarantool network io library
