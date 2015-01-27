@@ -2,19 +2,7 @@
 # build flags
 #============================================================================#
 
-# default flags
-if ("${CMAKE_BUILD_TYPE}" STREQUAL "None")
-    set (tntnet_cflags "-std=gnu99")
-else()
-    set (tntnet_cflags "-std=gnu99 -Wall -Wextra")
-    set (tntnet_cflags "${tntnet_cflags} -Wno-sign-compare -Wno-strict-aliasing")
-endif()
-
-# Only add -Werror if it's a debug build, done by developers.
-if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
-    set (tntnet_cflags "${tntnet_cflags} -Werror")
-endif()
-set (tntnet_cflags "${tntnet_cflags} -D_XOPEN_SOURCE")
+set (tntnet_cflags "${tnt_cflags} -D_XOPEN_SOURCE")
 
 #============================================================================#
 # Build tnt net project

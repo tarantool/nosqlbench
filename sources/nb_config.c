@@ -209,7 +209,7 @@ nb_config_expect(struct nb_config *cfg, int tk, struct tnt_tk **tkp)
 }
 
 static int nb_config_readint(struct nb_config *cfg, int *v) {
-	struct tnt_tk *tk;
+	struct tnt_tk *tk = NULL;
 	if (nb_config_expect(cfg, TNT_TK_NUM32, &tk) == -1)
 		return -1;
 	*v = TNT_TK_I32(tk);
@@ -217,7 +217,7 @@ static int nb_config_readint(struct nb_config *cfg, int *v) {
 }
 
 static int nb_config_readsz(struct nb_config *cfg, char **v) {
-	struct tnt_tk *tk;
+	struct tnt_tk *tk = NULL;
 	if (nb_config_expect(cfg, TNT_TK_STRING, &tk) == -1)
 		return -1;
 	if (*v)

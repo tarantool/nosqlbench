@@ -8,11 +8,20 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 #
 find_library(M_LIB m)
 
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING
+        "Choose the type of build, options are: Debug Release" FORCE)
+endif()
+##
 ## cflags
 ##
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread -std=gnu99 -Wall -Wextra -g")
-set(CMAKE_C_FLAGS_DEBUG "-O0 -g -pg")
-set(CMAKE_C_FLAGS_RELEASE "-O3 -march=native")
+
+if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -march=native")
+elseif("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0")
+endif()
 
 include_directories("${PROJECT_SOURCE_DIR}/third_party")
 include_directories("${PROJECT_SOURCE_DIR}/third_party/tarantool-c")
@@ -20,3 +29,5 @@ include_directories("${PROJECT_SOURCE_DIR}/third_party/tarantool-c")
 add_subdirectory(third_party)
 add_subdirectory(sources)
 add_subdirectory(plotter)
+
+message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
