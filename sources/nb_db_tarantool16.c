@@ -34,8 +34,8 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "lib/tp.h"
-#include "lib/session.h"
+#include "src/tp.h"
+#include "src/session.h"
 
 #include "nb_alloc.h"
 #include "nb_opt.h"

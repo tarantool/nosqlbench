@@ -14,12 +14,8 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread -std=gnu99 -Wall -Wextra -g")
 set(CMAKE_C_FLAGS_DEBUG "-O0 -g -pg")
 set(CMAKE_C_FLAGS_RELEASE "-O3 -march=native")
 
-include_directories("${PROJECT_SOURCE_DIR}/sources")
-include_directories("${PROJECT_SOURCE_DIR}/third_party/msgpuck")
-include_directories("${PROJECT_SOURCE_DIR}/third_party/tarantool-c")
 include_directories("${PROJECT_SOURCE_DIR}/third_party")
-
-add_definitions("-DTB_LOCAL=${PROJECT_SOURCE_DIR}/third_party/tarantool-c/lib")
+include_directories("${PROJECT_SOURCE_DIR}/third_party/tarantool-c")
 
 add_subdirectory(third_party)
 add_subdirectory(sources)
