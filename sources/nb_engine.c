@@ -77,7 +77,7 @@ static void *nb_worker(void *ptr)
 
 	nb_worker_init();
 
-	nb.db->init(&worker->db, 1);
+	nb.db->init(&worker->db, nb.opts.value_size);
 	if (nb.db->connect(&worker->db, &nb.opts) == -1)
 		return NULL;
 
