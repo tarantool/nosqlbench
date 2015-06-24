@@ -51,12 +51,10 @@ static pthread_mutex_t lock_stats = PTHREAD_MUTEX_INITIALIZER;
 static void
 nb_worker_account(struct nb_worker *worker, int batch)
 {
-	struct nb_stat *current = nb_history_current(&worker->history);
 	int missed = 0;
 	worker->db.dif->recv(&worker->db, batch, &missed);
-	current->cnt_miss += missed;
+	nb_history_add(&worker->history, RT_MISS, missed);
 
-	nb_history_account(&worker->history, batch);
 	nb_history_avg(&worker->history);
 	pthread_mutex_lock(&lock_stats);
 	nb_statistics_set(&nb.stats, worker->id, &worker->history.Savg);
@@ -83,30 +81,33 @@ static void *nb_worker(void *ptr)
 
 	while (!nb.is_done) {
 		nb_workload_reset(&worker->workload);
-		nb_history_start(&worker->history);
 
 		struct nb_request *req;
+		int batch_size = 0;
 		while ((req = nb_workload_fetch(&worker->workload)) && !nb.is_done) {
 			/* generating key and making request */
 			worker->key->generate(&worker->keyv, worker->workload.count);
 			req->_do(&worker->db, &worker->keyv);
 			req->requested++;
+			batch_size++;
 			worker->workload.requested++;
-			nb_history_add(&worker->history, req->type == NB_SELECT, 1);
+			nb_history_add(&worker->history, req->type ==
+				NB_SELECT ? RT_READ : RT_WRITE, 1);
 
 			/* in case of 'delete' request, we have to
 			 * reinsert delete entry */
 			if (req->type == NB_DELETE) {
 				nb.db->insert(&worker->db, &worker->keyv);
 				worker->workload.requested++;
-				nb_history_add(&worker->history, 0, 1);
+				batch_size++;
+				nb_history_add(&worker->history, RT_WRITE, 1);
 			}
 
 			/* processing requests in request_batch_count intervals */
-			if (worker->workload.requested % nb.opts.request_batch_count == 0 &&
-			    worker->workload.requested > 0) {
-				worker->workload.processed += nb.opts.request_batch_count;
-				nb_worker_account(worker, nb.opts.request_batch_count);
+			if (batch_size >= nb.opts.request_batch_count) {
+				worker->workload.processed += batch_size;
+				nb_worker_account(worker, batch_size);
+				batch_size = 0;
 			}
 		}
 

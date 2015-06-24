@@ -74,13 +74,12 @@ static void nb_report_default_progress(int processed, int max)
 
 static void nb_report_default(void)
 {
-	printf("[%3d sec] [%2d threads] %7d req/s %7d read/s %7d write/s  %.2f ms\n",
+	printf("[%3d sec] [%2d threads] %7d req/s %7d read/s %7d write/s\n",
 	       nb.tick,
 	       nb.workers.count,
 	       nb.stats.current->ps_req,
 	       nb.stats.current->ps_read,
-	       nb.stats.current->ps_write,
-	       nb.stats.current->latency_req * 1000.0);
+	       nb.stats.current->ps_write);
 }
 
 static void nb_report_default_final(void)
@@ -93,7 +92,6 @@ static void nb_report_default_final(void)
 	"| read/s   |    %7d    |    %7d    |    %8d   |\n"
 	"| write/s  |    %7d    |    %7d    |    %8d   |\n"
 	"| req/s    |    %7d    |    %7d    |    %8d   |\n"
-	"| rtt/ms   |    %.5f    |    %.5f    |    %.6f   |\n"
 	"'----------.---------------.---------------.---------------'\n"
 	"\n";
 	printf(report, 
@@ -105,10 +103,7 @@ static void nb_report_default_final(void)
 	       nb.stats.final.ps_write_max,
 	       nb.stats.final.ps_req_min,
 	       nb.stats.final.ps_req_avg,
-	       nb.stats.final.ps_req_max,
-	       nb.stats.final.latency_req_min * 1000.0,
-	       nb.stats.final.latency_req_avg * 1000.0,
-	       nb.stats.final.latency_req_max * 1000.0);
+	       nb.stats.final.ps_req_max);
 }
 
 static void nb_report_integral(void)

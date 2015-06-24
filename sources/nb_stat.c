@@ -58,7 +58,7 @@ void nb_statistics_free(struct nb_statistics *s)
 {
 	if (s->stats)
 		free(s->stats);
-	struct nb_stat *c = s->head, *n;
+	struct nb_stat_avg *c = s->head, *n;
 	while (c) {
 		n = c->next;
 		free(c);
@@ -78,7 +78,7 @@ void nb_statistics_resize(struct nb_statistics *s, int count)
 }
 
 static void
-nb_statistics_current(struct nb_statistics *s, struct nb_stat *dest)
+nb_statistics_current(struct nb_statistics *s, struct nb_stat_avg *dest)
 {
 	memset(dest, 0, sizeof(struct nb_stat));
 	int i = 0;
@@ -86,17 +86,13 @@ nb_statistics_current(struct nb_statistics *s, struct nb_stat *dest)
 		dest->ps_read += s->stats[i].ps_read;
 		dest->ps_write += s->stats[i].ps_write;
 		dest->ps_req += s->stats[i].ps_req;
-		dest->latency_req += s->stats[i].latency_req;
-		dest->latency_batch += s->stats[i].latency_batch;
 		dest->cnt_miss += s->stats[i].cnt_miss;
 	}
-	dest->latency_req /= s->count;
-	dest->latency_batch /= s->count;
 }
 
 void nb_statistics_report(struct nb_statistics *s, int workers, int tick)
 {
-	struct nb_stat *n = nb_malloc(sizeof(struct nb_stat));
+	struct nb_stat_avg *n = nb_malloc(sizeof(struct nb_stat_avg));
 	nb_statistics_current(s, n);
 	n->workers = workers;
 	n->time = tick;
@@ -113,16 +109,14 @@ void nb_statistics_report(struct nb_statistics *s, int workers, int tick)
 void nb_statistics_final(struct nb_statistics *s)
 {
 	memset(&s->final, 0, sizeof(s->final));
-	struct nb_stat *iter = s->head;
+	struct nb_stat_avg *iter = s->head;
 	if (iter == NULL)
 		return;
 
-	s->final.latency_req_min = iter->latency_req;
 	s->final.ps_req_min = iter->ps_req;
 	s->final.ps_read_min = iter->ps_read;
 	s->final.ps_write_min = iter->ps_write;
 
-	float latency_req_sum = 0.0;
 	int ps_req_sum = 0;
 	int ps_read_sum = 0;
 	int ps_write_sum = 0;
@@ -143,12 +137,6 @@ void nb_statistics_final(struct nb_statistics *s)
 		if (iter->ps_read > s->final.ps_read_max)
 			s->final.ps_read_max = iter->ps_read;
 
-		if (iter->latency_req < s->final.latency_req_min)
-			s->final.latency_req_min = iter->latency_req;
-		if (iter->latency_req > s->final.latency_req_max)
-			s->final.latency_req_max = iter->latency_req;
-
-		latency_req_sum += iter->latency_req;
 		ps_req_sum += iter->ps_req;
 		ps_read_sum += iter->ps_read;
 		ps_write_sum += iter->ps_write;
@@ -158,14 +146,13 @@ void nb_statistics_final(struct nb_statistics *s)
 	s->final.ps_req_avg = ps_req_sum / s->count_report;
 	s->final.ps_read_avg = ps_read_sum / s->count_report;
 	s->final.ps_write_avg = ps_write_sum / s->count_report;
-	s->final.latency_req_avg = latency_req_sum / s->count_report;
 
 	s->final.missed = s->tail->cnt_miss;
 }
 
 static int nb_statistics_min_workers(struct nb_statistics *s) {
 	int min = s->head->workers;
-	struct nb_stat *n = s->head->next;
+	struct nb_stat_avg *n = s->head->next;
 	while (n) {
 		if (n->ps_req < min)
 			min = n->workers;
@@ -176,7 +163,7 @@ static int nb_statistics_min_workers(struct nb_statistics *s) {
 
 static int nb_statistics_max_workers(struct nb_statistics *s) {
 	int max = 0;
-	struct nb_stat *n = s->head;
+	struct nb_stat_avg *n = s->head;
 	while (n) {
 		if (n->ps_req > max)
 			max = n->workers;
@@ -188,8 +175,8 @@ static int nb_statistics_max_workers(struct nb_statistics *s) {
 static double
 nb_statistics_integrate(struct nb_statistics *s, int workers) {
 	/* match lower bound */
-	struct nb_stat *start = NULL;
-	struct nb_stat *n = s->head;
+	struct nb_stat_avg *start = NULL;
+	struct nb_stat_avg *n = s->head;
 	while (n) {
 		int s = (start == NULL || n->workers >= start->workers);
 		if (n->workers <= workers && s)
@@ -229,15 +216,14 @@ int nb_statistics_csv(struct nb_statistics *s, char *file)
 	FILE *f = fopen(file, "w");
 	if (f == NULL)
 		return -1;
-	struct nb_stat *iter = s->head;
+	struct nb_stat_avg *iter = s->head;
 	while (iter) {
-		int rc = fprintf(f, "%d, %d, %d, %d, %d, %f\n",
+		int rc = fprintf(f, "%d, %d, %d, %d, %d\n",
 				 iter->workers,
 				 iter->time,
 				 iter->ps_req,
 				 iter->ps_read,
-				 iter->ps_write,
-				 iter->latency_req);
+				 iter->ps_write);
 		if (rc == -1)
 			return -1;
 		iter = iter->next;
@@ -250,7 +236,6 @@ void nb_history_init(struct nb_history *s, int max)
 {
 	s->Smax = max;
 	s->Scurrent = 0;
-	s->Stop = 1;
 	s->S = nb_malloc(sizeof(struct nb_stat) * max);
 	memset(s->S, 0, sizeof(struct nb_stat) * max);
 }
@@ -266,51 +251,68 @@ unsigned long long nb_history_time(void)
 	unsigned long long tm;
 	struct timeval tv;
 	gettimeofday(&tv, NULL);
-	tm = ((long long)tv.tv_sec) * 1000000;
+	tm = tv.tv_sec * 1000000ull;
 	tm += tv.tv_usec;
 	return tm;
 }
 
-void nb_history_avg(struct nb_history *s)
-{
-	memset(&s->Savg, 0, sizeof(s->Savg));
-	int i = 0;
-	for (; i < s->Stop; i++) {
-		s->Savg.ps_read += s->S[i].ps_read;
-		s->Savg.ps_write += s->S[i].ps_write;
-		s->Savg.ps_req += s->S[i].ps_req;
-		s->Savg.latency_req += s->S[i].latency_req;
-		s->Savg.latency_batch += s->S[i].latency_batch;
-		s->Savg.cnt_miss += s->S[i].cnt_miss;
+void
+nb_history_add(struct nb_history *s, enum history_event_type e, int count) {
+	long long t = nb_history_time();
+	long long epoch = t * s->Smax / 1000000;
+	if (epoch > s->epoch) {
+		long long e_start = s->epoch + 1;
+		if (e_start < epoch - s->Smax)
+			e_start = epoch - s->Smax;
+		for (long long e = e_start; e <= epoch; e++) {
+			long long pos = e % s->Smax;
+			s->S[pos].cnt_read = 0;
+			s->S[pos].cnt_write = 0;
+			s->S[pos].cnt_miss = 0;
+			s->S[pos].epoch = e;
+			s->S[pos].time_last_upd = e * 1000000 / 16;
+		}
+		s->epoch = epoch;
 	}
-	s->Savg.ps_read /= s->Stop;
-	s->Savg.ps_write /= s->Stop;
-	s->Savg.ps_req /= s->Stop;
-	s->Savg.latency_req /= s->Stop;
-	s->Savg.latency_batch /= s->Stop;
+	long long pos = epoch % s->Smax;
+	struct nb_stat *current = &s->S[pos];
+	if (e == RT_READ)
+		current->cnt_read += count;
+	else if (e == RT_WRITE)
+		current->cnt_write += count;
+	else if (e == RT_MISS)
+		current->cnt_miss += count;
+	current->time_last_upd = t;
 }
 
-void nb_history_account(struct nb_history *s, int batch)
+void nb_history_avg(struct nb_history *s)
 {
-	nb_history_stop(s);
-
-	struct nb_stat *current = &s->S[s->Scurrent];
-
-	current->latency_batch = s->tm_diff / 1000000.0;
-	current->latency_req = current->latency_batch / batch;
-	current->ps_req = (current->cnt_read + current->cnt_write) /
-		           current->latency_batch;
-	current->ps_read = current->cnt_read / current->latency_batch;
-	current->ps_write = current->cnt_write / current->latency_batch;
-
-	current->cnt_read = 0;
-	current->cnt_write = 0;
-
-	s->Scurrent++;
-	if (s->Stop < s->Smax)
-		s->Stop++;
-	if (s->Scurrent == s->Smax)
-		s->Scurrent = 0;
-
-	nb_history_start(s);
+	long long t = nb_history_time();
+	long long epoch = t * s->Smax / 1000000;
+	long long min_epoch = epoch - s->Smax + 1;
+	memset(&s->Savg, 0, sizeof(s->Savg));
+	int i = 0;
+	double total_time = 0;
+	int total_read = 0, total_write = 0, total_miss = 0;
+	for (; i < s->Smax; i++) {
+		if (s->S[i].epoch == epoch) {
+			long long diff =
+				s->S[i].time_last_upd - epoch * 1000000 / 16;
+			if (diff == 0)
+				continue;
+			total_time += (double)diff / 1000000;
+		} else if (s->S[i].epoch > epoch || s->S[i].epoch < min_epoch) {
+			continue;
+		} else {
+			total_time += 1. / s->Smax;
+		}
+		total_read += s->S[i].cnt_read;
+		total_write += s->S[i].cnt_write;
+		total_miss += s->S[i].cnt_miss;
+	}
+	total_time = total_time == 0. ? 1. : total_time;
+	s->Savg.ps_read = (int)(total_read / total_time);
+	s->Savg.ps_write = (int)(total_write / total_time);
+	(void)total_miss;
+	s->Savg.ps_req = s->Savg.ps_read + s->Savg.ps_write;
 }
