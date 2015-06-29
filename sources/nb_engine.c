@@ -100,7 +100,6 @@ static void *nb_worker(void *ptr)
 				nb.db->insert(&worker->db, &worker->keyv);
 				worker->workload.requested++;
 				batch_size++;
-				nb_history_add(&worker->history, RT_WRITE, 1);
 			}
 
 			/* processing requests in request_batch_count intervals */
