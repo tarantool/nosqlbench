@@ -1,3 +1,5 @@
+#ifndef NB_DB_MEMCACHED_BIN_H_INCLUDED
+#define NB_DB_MEMCACHED_BIN_H_INCLUDED
 
 /*
  * Redistribution and use in source and binary forms, with or
@@ -28,49 +30,6 @@
  * SUCH DAMAGE.
  */
 
-#include <stdlib.h>
-#include <stdint.h>
-#include <inttypes.h>
-#include <string.h>
-#include <stdio.h>
-#include <time.h>
+extern struct nb_db_if nb_db_memcached_bin;
 
-#include "config.h"
-#include "nb_alloc.h"
-#include "nb_opt.h"
-#include "nb_key.h"
-#include "nb_db.h"
-#include "nb_db_tarantool15.h"
-#include "nb_db_tarantool16.h"
-#if defined(HAVE_LEVELDB)
-#include "nb_db_leveldb.h"
-#endif
-#if defined(HAVE_LEVELDB)
-#include "nb_db_nessdb.h"
-#endif
-#include "nb_db_memcached_bin.h"
-
-struct nb_db_if *nb_dbs[] =
-{
-	&nb_db_tarantool15,
-	&nb_db_tarantool16,
-#if defined(HAVE_LEVELDB)
-	&nb_db_leveldb,
-#endif
-#if defined(HAVE_NESSDB_V1) || defined(HAVE_NESSDB_V2)
-	&nb_db_nessdb,
-#endif
-	&nb_db_memcached_bin,
-	NULL
-};
-
-struct nb_db_if *nb_db_match(const char *name)
-{
-	int i = 0;
-	while (nb_dbs[i]) {
-		if (strcmp(nb_dbs[i]->name, name) == 0)
-			return nb_dbs[i];
-		i++;
-	}
-	return NULL;
-}
+#endif /* NB_DB_MEMCACHED_BIN_H_INCLUDED */

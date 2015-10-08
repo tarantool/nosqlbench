@@ -1,6 +1,6 @@
 set(nb_bin nb)
 
-set(nb_libs tnt tntnet tntsql tb ${M_LIB})
+set(nb_libs tnt tntnet tntsql tb mc ${M_LIB})
 set(nb_src
 	nb_alloc.h
 	nb.c
@@ -12,6 +12,8 @@ set(nb_src
 	nb_db_tarantool15.h
 	nb_db_tarantool16.c
 	nb_db_tarantool16.h
+	nb_db_memcached_bin.c
+	nb_db_memcached_bin.h
 	nb_engine.c
 	nb_engine.h
 	nb.h
@@ -74,3 +76,7 @@ endif (LEVELDB_FOUND)
 if (NESSDB_FOUND)
 	target_link_libraries (${nb_bin} ${NESSDB_LIBRARIES})
 endif (NESSDB_FOUND)
+
+if (LIBMEMCACHED_FOUND)
+	target_link_libraries (${nb_bin} ${LIBMEMCACHED_LIBRARIES})
+endif (LIBMEMCACHED_FOUND)
