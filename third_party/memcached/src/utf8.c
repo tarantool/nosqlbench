@@ -34,19 +34,18 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <tarantool/tnt.h>
-#include <tarantool/tnt_utf8.h>
+#include <parser/utf8.h>
 
 bool
 tnt_utf8_init(struct tnt_utf8 *u, const unsigned char *data, size_t size)
 {
 	u->size = size;
-	u->data = (unsigned char*)tnt_mem_alloc(u->size + 1);
+	u->data = (unsigned char*)malloc(u->size + 1);
 	u->data[u->size] = 0;
 	memcpy(u->data, data, u->size);
 	ssize_t len = tnt_utf8_strlen(u->data, u->size);
 	if (len == -1) {
-		tnt_mem_free(u->data);
+		free(u->data);
 		return false;
 	}
 	u->len = len;
@@ -57,7 +56,7 @@ void
 tnt_utf8_free(struct tnt_utf8 *u)
 {
 	if (u->data)
-		tnt_mem_free(u->data);
+		free(u->data);
 	u->data = NULL;
 	u->size = 0;
 	u->len = 0;

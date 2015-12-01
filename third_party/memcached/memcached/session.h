@@ -1,3 +1,5 @@
+#ifndef TB_SESSION_H_
+#define TB_SESSION_H_
 
 /*
  * Redistribution and use in source and binary forms, with or
@@ -26,50 +28,48 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- */
-
-#include <stdlib.h>
-#include <stdint.h>
-#include <string.h>
-
-#include <tarantool/tnt_proto.h>
-#include <tarantool/tnt_tuple.h>
-#include <tarantool/tnt_request.h>
-#include <tarantool/tnt_reply.h>
-#include <tarantool/tnt_stream.h>
-#include <tarantool/tnt_delete.h>
+*/
 
 /*
- * tnt_delete()
- *
- * write delete request to stream;
- *
- * s     - stream pointer
- * ns    - space
- * flags - request flags
- * k     - tuple key
- * 
- * returns number of bytes written, or -1 on error.
+ * tarantool v1.6 network session
 */
-ssize_t
-tnt_delete(struct tnt_stream *s, uint32_t ns, uint32_t flags, struct tnt_tuple *k)
-{
-	/* filling major header */
-	struct tnt_header hdr;
-	hdr.type  = TNT_OP_DELETE;
-	hdr.len = sizeof(struct tnt_header_delete) + k->size;
-	hdr.reqid = s->reqid;
-	/* filling delete header */
-	struct tnt_header_delete hdr_del;
-	hdr_del.ns = ns;
-	hdr_del.flags = flags;
-	/* writing data to stream */
-	struct iovec v[3];
-	v[0].iov_base = (void *)&hdr;
-	v[0].iov_len  = sizeof(struct tnt_header);
-	v[1].iov_base = (void *)&hdr_del;
-	v[1].iov_len  = sizeof(struct tnt_header_delete);
-	v[2].iov_base = k->data;
-	v[2].iov_len  = k->size;
-	return s->writev(s, v, 3);
-}
+
+#include <sys/time.h>
+
+struct tbbuf {
+	size_t off;
+	size_t top;
+	size_t size;
+	char *buf;
+};
+
+struct tbses {
+	char *host;
+	int port;
+	int connected;
+	struct timeval tmc;
+	int sbuf;
+	int rbuf;
+	int fd;
+	int errno_;
+	struct tbbuf s, r;
+};
+
+enum tbsesopt {
+	TB_HOST,
+	TB_PORT,
+	TB_CONNECTTM,
+	TB_SENDBUF,
+	TB_READBUF
+};
+
+int tb_sesinit(struct tbses*);
+int tb_sesfree(struct tbses*);
+int tb_sesset(struct tbses*, enum tbsesopt, ...);
+int tb_sesconnect(struct tbses*);
+int tb_sesclose(struct tbses*);
+int tb_sessync(struct tbses*);
+ssize_t tb_sessend(struct tbses*, char*, size_t);
+ssize_t tb_sesrecv(struct tbses*, char*, size_t, int strict);
+
+#endif

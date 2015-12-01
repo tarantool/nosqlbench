@@ -38,10 +38,9 @@
 #include <limits.h>
 #include <errno.h>
 
-#include <tarantool/tnt.h>
-#include <tarantool/tnt_utf8.h>
-#include <tarantool/tnt_queue.h>
-#include <tarantool/tnt_lex.h>
+#include <parser/utf8.h>
+#include <memcached/parser/queue.h>
+#include <parser/lex.h>
 
 bool tnt_lex_init(struct tnt_lex *l, struct tnt_lex_keyword *keywords,
 		  unsigned char *buf, size_t size)
@@ -67,11 +66,11 @@ void tnt_lex_free(struct tnt_lex *l)
 	STAILQ_FOREACH_SAFE(tk, &l->q, nextq, tkn) {
 		if (tk->tk == TNT_TK_STRING || tk->tk == TNT_TK_ID)
 			tnt_utf8_free(TNT_TK_S(tk));
-		tnt_mem_free(tk);
+		free(tk);
 	}
 	tnt_utf8_free(&l->buf);
 	if (l->error)
-		tnt_mem_free(l->error);
+		free(l->error);
 }
 
 void tnt_lex_push(struct tnt_lex *l, struct tnt_tk *tk)
@@ -99,7 +98,7 @@ tnt_lex_pop(struct tnt_lex *l)
 
 static struct tnt_tk*
 tnt_lex_tk(struct tnt_lex *l, int tk, int line, int col) {
-	struct tnt_tk *t = tnt_mem_alloc(sizeof(struct tnt_tk));
+	struct tnt_tk *t = malloc(sizeof(struct tnt_tk));
 	memset(t, 0, sizeof(struct tnt_tk));
 	t->tk = tk;
 	t->line = line;
@@ -114,13 +113,13 @@ tnt_lex_error(struct tnt_lex *l, const char *fmt, ...) {
 	if (fmt == NULL)
 		return TNT_TK_EOF;
 	if (l->error)
-		tnt_mem_free(l->error);
+		free(l->error);
 	char msg[256];
 	va_list args;
 	va_start(args, fmt);
 	vsnprintf(msg, sizeof(msg), fmt, args);
 	va_end(args);
-	l->error = tnt_mem_dup(msg);
+	l->error = strdup(msg);
 	return TNT_TK_ERROR;
 }
 

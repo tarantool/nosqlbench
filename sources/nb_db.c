@@ -40,7 +40,6 @@
 #include "nb_opt.h"
 #include "nb_key.h"
 #include "nb_db.h"
-#include "nb_db_tarantool15.h"
 #include "nb_db_tarantool16.h"
 #if defined(HAVE_LEVELDB)
 #include "nb_db_leveldb.h"
@@ -52,7 +51,6 @@
 
 struct nb_db_if *nb_dbs[] =
 {
-	&nb_db_tarantool15,
 	&nb_db_tarantool16,
 #if defined(HAVE_LEVELDB)
 	&nb_db_leveldb,

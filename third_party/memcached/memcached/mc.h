@@ -288,7 +288,7 @@ struct mc_response {
 	const char    *val;
 };
 
-ssize_t
+MC_PROTO ssize_t
 mc_ensure(struct mc *p, size_t size);
 
 MC_PROTO void
@@ -345,7 +345,7 @@ mc_unused(struct mc *p)
 	return p->e - p->p;
 }
 
-ssize_t
+MC_IMPL ssize_t
 mc_ensure(struct mc *p, size_t size)
 {
 	if (mc_likely(mc_unused(p) >= size))

@@ -44,10 +44,9 @@
 #include <fcntl.h>
 #include <errno.h>
 
-#include <tarantool/tnt.h>
-#include <tarantool/tnt_queue.h>
-#include <tarantool/tnt_utf8.h>
-#include <tarantool/tnt_lex.h>
+#include <parser/queue.h>
+#include <parser/utf8.h>
+#include <parser/lex.h>
 
 #include "nosqlbench.h"
 

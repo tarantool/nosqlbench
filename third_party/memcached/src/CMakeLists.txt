@@ -6,10 +6,13 @@ set(LIBMC_SOVERSION "${LIBMC_VERSIONMAJOR}")
 set(LIBMC_CFLAGS "-std=gnu99 -Wall -Wextra -g")
 message(STATUS "C_FLAGS: ${LIBMC_CFLAGS}")
 
-set(libtb_sources
-    mc.c)
+set(libmc_sources
+    mc.c
+    session.c
+    utf8.c
+    lex.c)
 
-add_library(mc STATIC ${libtb_sources})
+add_library(mc STATIC ${libmc_sources})
 
 set_target_properties(mc PROPERTIES COMPILE_FLAGS "${LIBMC_CFLAGS}")
 set_target_properties(mc PROPERTIES VERSION ${LIBMC_VERSION} SOVERSION ${LIBMC_SOVERSION})

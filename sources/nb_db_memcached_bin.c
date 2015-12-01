@@ -34,17 +34,14 @@
 #include <string.h>
 #include <stdio.h>
 
-#include <tarantool/tnt.h>
-#include <tarantool/tnt_net.h>
-
 #include "nb_alloc.h"
 #include "nb_opt.h"
 #include "nb_key.h"
 #include "nb_db.h"
-#include "nb_db_tarantool15.h"
+#include "nb_db_memcached_bin.h"
 
-#include "src/mc.h"
-#include "src/session.h"
+#include "memcached/mc.h"
+#include "memcached/session.h"
 
 struct db_memcached_bin {
 	struct tbses s;
