@@ -25,6 +25,7 @@ endif()
 
 include_directories("${PROJECT_SOURCE_DIR}/third_party")
 include_directories("${PROJECT_SOURCE_DIR}/third_party/tarantool-c/include")
+include_directories("${PROJECT_SOURCE_DIR}/third_party/tarantool-c/third_party")
 include_directories("${PROJECT_SOURCE_DIR}/third_party/memcached")
 include_directories("${PROJECT_SOURCE_DIR}/third_party/memcached/memcached")
 
