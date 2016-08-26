@@ -39,9 +39,6 @@
 
 #include "nb_alloc.h"
 #include "nb_opt.h"
-#include "nb_key.h"
-#include "nb_db.h"
-#include "nb_workload.h"
 #include "nb_stat.h"
 #include "nb_worker.h"
 
@@ -60,10 +57,24 @@ void nb_workers_free(struct nb_workers *workers)
 		c->db.dif->close(&c->db);
 		c->db.dif->free(&c->db);
 		c->key->free(&c->keyv);
+		nb_histogram_delete(c->total_hist);
+		nb_histogram_delete(c->period_hist);
 		nb_history_free(&c->history);
 		free(c);
 		c = n;
 	}
+}
+
+struct nb_histogram *
+nb_workers_merge_histogram(struct nb_workers *workers)
+{
+	struct nb_histogram *res = nb_histogram_new();
+	struct nb_worker *c = workers->head;
+	while (c) {
+		nb_histogram_merge(res, c->total_hist);
+		c = c->next;
+	}
+	return res;
 }
 
 struct nb_worker*
@@ -82,6 +93,8 @@ nb_workers_create(struct nb_workers *workers, struct nb_db_if *dif,
 
 	n->key = kif;
 	n->key->init(&n->keyv, distif);
+	n->total_hist = nb_histogram_new();
+	n->period_hist = nb_histogram_new();
 
 	nb_history_init(&n->history, history_max);
 	nb_workload_init_from(&n->workload, workload);

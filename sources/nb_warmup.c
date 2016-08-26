@@ -35,21 +35,55 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-
 #include <unistd.h>
 #include <signal.h>
 #include <pthread.h>
 
 #include "nosqlbench.h"
+#include "async_io.h"
 
 extern struct nb nb;
+struct nb_db db;
 
 extern volatile sig_atomic_t nb_signaled;
+
+struct io_user_data {
+	struct nb_key *key;
+	size_t i;
+};
+
+static void *io_write(struct async_io_object *io_obj, size_t *size)
+{
+	struct io_user_data *ud = (struct io_user_data *)async_io_get_user_data(io_obj);
+	if ((int)ud->i >= nb.opts.request_count || nb_signaled) {
+		async_io_finish(io_obj);
+		return NULL;
+	}
+	nb.key->generate_by_id(ud->key, ud->i);
+	nb.db->replace(&db, ud->key);
+	ud->i++;
+	if (nb.report->progress)
+		nb.report->progress(ud->i, nb.opts.request_count);
+	return nb.db->get_buf(&db, size);
+}
+
+static int io_msg_len(struct async_io_object *io_obj, void *buf, size_t size)
+{
+	(void)io_obj;
+	return nb.db->msg_len(buf, size);
+}
+
+static int io_recv_from_buf(struct async_io_object *obj, char *buf, size_t size, size_t *off)
+{
+	(void)obj;
+	return nb.db->recv_from_buf(buf, size, off, NULL);
+}
 
 int nb_warmup(void)
 {
 	int rc = 0;
-	struct nb_db db = { nb.db, NULL };
+	db.dif = nb.db;
+	db.priv = NULL;
 
 	struct nb_key key;
 	nb.key->init(&key, nb.key_dist);
@@ -57,30 +91,17 @@ int nb_warmup(void)
 	nb.db->init(&db, nb.opts.value_size);
 	if (nb.db->connect(&db, &nb.opts) == -1) {
 		rc = 1;
-		goto free;
+		goto error;
 	}
+	struct io_user_data userdata = {&key, 0};
+	struct async_io_if io_if = {io_msg_len, io_write, io_recv_from_buf};
+	struct async_io_object *io_object = async_io_new(nb.db->get_fd(&db), &io_if, &userdata);
+	if (io_object == NULL)
+		goto error;
+	async_io_start(io_object);
 
-	int missed = 0;
-	int i = 0;
-	while (i < nb.opts.request_count && !nb_signaled) {
-		nb.key->generate_by_id(&key, i);
-		nb.db->insert(&db, &key);
-		i++;
-		if (i % nb.opts.request_batch_count == 0) {
-			if (nb.db->recv(&db, nb.opts.request_batch_count, &missed) == -1) {
-				rc = 1;
-				goto free;
-			}
-			if (nb.report->progress)
-				nb.report->progress(i, nb.opts.request_count);
-		}
-	}
-	if (!nb_signaled && i % nb.opts.request_batch_count)
-		if (nb.db->recv(&db, i % nb.opts.request_batch_count, &missed) == -1) {
-			rc = 1;
-			goto free;
-		}
-free:
+	async_io_delete(io_object);
+error:
 	if (nb.report->progress)
 		nb.report->progress(0, 0);
 

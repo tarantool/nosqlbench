@@ -38,28 +38,20 @@
 
 #include <unistd.h>
 #include <signal.h>
-#include <pthread.h>
 
 #include "nosqlbench.h"
+#include "async_io.h"
+#include "nb_histogram.h"
 
 extern struct nb nb;
 
 extern volatile sig_atomic_t nb_signaled;
 
-static pthread_mutex_t lock_stats = PTHREAD_MUTEX_INITIALIZER;
-
-static void
-nb_worker_account(struct nb_worker *worker, int batch)
-{
-	int missed = 0;
-	worker->db.dif->recv(&worker->db, batch, &missed);
-	nb_history_add(&worker->history, RT_MISS, missed);
-
-	nb_history_avg(&worker->history);
-	pthread_mutex_lock(&lock_stats);
-	nb_statistics_set(&nb.stats, worker->id, &worker->history.Savg);
-	pthread_mutex_unlock(&lock_stats);
-}
+struct io_user_data {
+	struct nb_worker *worker;
+	struct nb_request *request;
+	enum nb_request_type prev_type;
+};
 
 static void
 nb_worker_init(void) {
@@ -67,6 +59,72 @@ nb_worker_init(void) {
 	sigemptyset(&set);
 	sigaddset(&set, SIGINT);
 	pthread_sigmask(SIG_BLOCK, &set, NULL);
+}
+
+static void *io_write(struct async_io_object *io_obj, size_t *size)
+{
+	struct io_user_data *ud;
+	ud = (struct io_user_data *)async_io_get_user_data(io_obj);
+	struct nb_worker *worker = ud->worker;
+	if (nb.is_done) {
+		async_io_finish(io_obj);
+		return NULL;
+	}
+	/**
+	 * The request can be unset if it is first call of io_write
+	 * of if all requests already sent and need to rewind list of
+	 * requests.
+	 */
+	if (ud->request == NULL) {
+		nb_workload_reset(&worker->workload);
+		ud->request = nb_workload_fetch(&worker->workload);
+		if (ud->request == NULL) {
+			async_io_finish(io_obj);
+			return NULL;
+		}
+	} else {
+		/* If the previous request deleted a tuple then reinsert it. */
+		if (ud->prev_type == NB_DELETE) {
+			nb.db->replace(&worker->db, &worker->keyv);
+			worker->workload.requested++;
+			ud->prev_type = NB_INSERT;
+			nb_history_add(&worker->history, RT_WRITE);
+			return nb.db->get_buf(&worker->db, size);
+		}
+	}
+	worker->key->generate(&worker->keyv, worker->workload.count);
+	ud->request->_do(&worker->db, &worker->keyv);
+	ud->request->requested++;
+	worker->workload.requested++;
+	nb_history_add(&worker->history, ud->request->type ==
+		       NB_SELECT ? RT_READ : RT_WRITE);
+	ud->prev_type = ud->request->type;
+	ud->request = nb_workload_fetch(&worker->workload);
+	return nb.db->get_buf(&worker->db, size);
+}
+
+static int io_msg_len(struct async_io_object *io_obj, void *buf, size_t size)
+{
+	(void)io_obj;
+	return nb.db->msg_len(buf, size);
+}
+
+static int io_recv_from_buf(struct async_io_object *io_obj, char *buf,
+			    size_t size, size_t *off)
+{
+	struct io_user_data *ud;
+	ud = (struct io_user_data *)async_io_get_user_data(io_obj);
+	struct nb_worker *worker = ud->worker;
+	uint64_t latency = 0;
+	int rc = nb.db->recv_from_buf(buf, size, off, &latency);
+	nb_histogram_add(worker->total_hist, latency);
+	nb_histogram_add(worker->period_hist, latency);
+
+	nb_history_avg(&worker->history);
+	pthread_mutex_lock(&nb.stats.lock_stats);
+	nb_statistics_set(&nb.stats, worker->id, &worker->history.Savg);
+	pthread_mutex_unlock(&nb.stats.lock_stats);
+	return rc;
 }
 
 static void *nb_worker(void *ptr)
@@ -79,42 +137,27 @@ static void *nb_worker(void *ptr)
 	if (nb.db->connect(&worker->db, &nb.opts) == -1)
 		return NULL;
 
-	while (!nb.is_done) {
-		nb_workload_reset(&worker->workload);
+	struct io_user_data userdata;
+	userdata.worker = worker;
+	userdata.request = NULL;
+	userdata.prev_type = NB_INSERT;
 
-		struct nb_request *req;
-		int batch_size = 0;
-		while ((req = nb_workload_fetch(&worker->workload)) && !nb.is_done) {
-			/* generating key and making request */
-			worker->key->generate(&worker->keyv, worker->workload.count);
-			req->_do(&worker->db, &worker->keyv);
-			req->requested++;
-			batch_size++;
-			worker->workload.requested++;
-			nb_history_add(&worker->history, req->type ==
-				NB_SELECT ? RT_READ : RT_WRITE, 1);
-
-			/* in case of 'delete' request, we have to
-			 * reinsert delete entry */
-			if (req->type == NB_DELETE) {
-				nb.db->insert(&worker->db, &worker->keyv);
-				worker->workload.requested++;
-				batch_size++;
-			}
-
-			/* processing requests in request_batch_count intervals */
-			if (batch_size >= nb.opts.request_batch_count) {
-				worker->workload.processed += batch_size;
-				nb_worker_account(worker, batch_size);
-				batch_size = 0;
-			}
-		}
-
-		int still_to_process = worker->workload.requested -
-			               worker->workload.processed;
-		if (still_to_process > 0)
-			nb_worker_account(worker, still_to_process);
+	struct async_io_if io_if = {io_msg_len, io_write, io_recv_from_buf};
+	struct async_io_object *io_object;
+	int sock = nb.db->get_fd(&worker->db);
+	if (nb.opts.rps != 0) {
+		io_object = async_io_new_rps(sock, &io_if, nb.opts.rps,
+					     &userdata);
+	} else {
+		io_object = async_io_new(nb.db->get_fd(&worker->db), &io_if,
+					 &userdata);
 	}
+	if (io_object == NULL)
+		goto error;
+	async_io_start(io_object);
+
+	async_io_delete(io_object);
+error:
 	return NULL;
 }
 
@@ -139,13 +182,13 @@ static void nb_create_step(void)
 	if (nb.opts.threads_policy == NB_THREADS_ATONCE)
 		return;
 	if (nb.workers.count < nb.opts.threads_max) {
-		int bottom = 0;
 		int top = 0;
 		if (nb.workers.count + nb.opts.threads_increment > nb.opts.threads_max)
 			top = nb.opts.threads_max - nb.workers.count;
 		else
 			top = nb.opts.threads_increment;
-		for (; bottom < top; bottom++)
+		printf("\nAdd %d new thread(s) to benchmarking\n\n", top);
+		for (int i = 0; i < top; i++)
 			nb_workers_create(&nb.workers,
 					  nb.db,
 					  nb.key,
@@ -154,19 +197,19 @@ static void nb_create_step(void)
 					  nb.opts.history_per_batch,
 					  nb_worker);
 
-		pthread_mutex_lock(&lock_stats);
+		pthread_mutex_lock(&nb.stats.lock_stats);
 		nb_statistics_resize(&nb.stats, nb.workers.count);
-		pthread_mutex_unlock(&lock_stats);
+		pthread_mutex_unlock(&nb.stats.lock_stats);
 	}
 }
 
 static void nb_report(void)
 {
-	pthread_mutex_lock(&lock_stats);
+	pthread_mutex_lock(&nb.stats.lock_stats);
 	nb_statistics_report(&nb.stats, nb.workers.count, nb.tick);
 	if (nb.report->report)
 		nb.report->report();
-	pthread_mutex_unlock(&lock_stats);
+	pthread_mutex_unlock(&nb.stats.lock_stats);
 }
 
 
@@ -217,5 +260,5 @@ void nb_engine(void)
 	if (nb.opts.csv_file)
 		nb_statistics_csv(&nb.stats, nb.opts.csv_file);
 
-	pthread_mutex_destroy(&lock_stats);
+	pthread_mutex_destroy(&nb.stats.lock_stats);
 }

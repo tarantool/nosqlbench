@@ -99,6 +99,18 @@ static void nb_validate(void)
 			nb_error("bad client creation policy '%s'",
 				 nb.opts.threads_policy_name);
 	}
+	if (nb.opts.latency_measure_units) {
+		if (!strcmp(nb.opts.latency_measure_units, "millisec"))
+			nb.opts.latency_units = NB_LATENCY_MILSECS;
+		else if (!strcmp(nb.opts.latency_measure_units, "microsec"))
+			nb.opts.latency_units = NB_LATENCY_MICSECS;
+		else if (!strcmp(nb.opts.latency_measure_units, "sec"))
+			nb.opts.latency_units = NB_LATENCY_SECS;
+		else
+			nb_error("bad latency measure units '%s'",
+				nb.opts.latency_measure_units);
+		nb.opts.get_time = time_functions[nb.opts.latency_units];
+	}
 	/* matching and validation specified interfaces */
 	nb.db = nb_db_match(nb.opts.db);
 	if (nb.db == NULL)

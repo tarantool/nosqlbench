@@ -30,6 +30,10 @@
  * SUCH DAMAGE.
  */
 
+#include "nb_histogram.h"
+#include "nb_workload.h"
+#include "nb_key.h"
+
 struct nb_worker {
 	int id;
 	struct nb_db db;
@@ -37,6 +41,8 @@ struct nb_worker {
 	struct nb_key keyv;
 	struct nb_workload workload;
 	struct nb_history history;
+	struct nb_histogram *total_hist;
+	struct nb_histogram *period_hist;
 	pthread_t tid;
 	struct nb_worker *next;
 };
@@ -48,6 +54,9 @@ struct nb_workers {
 
 void nb_workers_init(struct nb_workers *workers);
 void nb_workers_free(struct nb_workers *workers);
+
+struct nb_histogram *
+nb_workers_merge_histogram(struct nb_workers *workers);
 
 struct nb_worker*
 nb_workers_create(struct nb_workers *workers, struct nb_db_if *dif,

@@ -42,6 +42,11 @@ struct nb_db_if {
 	int (*connect)(struct nb_db *db, struct nb_options *opts);
 	void (*close)(struct nb_db *db);
 	int (*recv)(struct nb_db *db, int count, int *missed);
+	int (*get_fd)(struct nb_db *db);
+	int (*recv_from_buf)(char *buf, size_t size, size_t *off,
+			     uint64_t *latency);
+	int (*msg_len)(const char *buf, size_t size);
+	void *(*get_buf)(struct nb_db *db, size_t *size);
 	nb_db_reqf_t insert;
 	nb_db_reqf_t replace;
 	nb_db_reqf_t update;

@@ -39,10 +39,12 @@
 #include <tarantool/tnt_opt.h>
 
 #include "nb_alloc.h"
-#include "nb_opt.h"
+#include "nb.h"
 #include "nb_key.h"
 #include "nb_db.h"
 #include "nb_db_tarantool16.h"
+
+extern struct nb nb;
 
 struct db_tarantool16 {
 	struct tnt_stream *stream;
@@ -120,6 +122,15 @@ encode_key(struct tnt_stream *obj, struct nb_key *key)
 	return 0;
 }
 
+void *db_tarantool16_get_buf(struct nb_db *db, size_t *size)
+{
+	struct db_tarantool16 *t = db->priv;
+	struct tnt_stream_net *sn = TNT_SNET_CAST(t->stream);
+	*size = sn->sbuf.off;
+	sn->sbuf.off = 0;
+	return sn->sbuf.buf;
+}
+
 static int db_tarantool16_insert(struct nb_db *db, struct nb_key *key)
 {
 	struct db_tarantool16 *t = db->priv;
@@ -128,11 +139,9 @@ static int db_tarantool16_insert(struct nb_db *db, struct nb_key *key)
 	tnt_object_add_array(t->object, 2);
 	encode_key(t->object, key);
 	tnt_object_add_str(t->object, t->value, t->value_size);
+	t->stream->reqid = nb.opts.get_time();
 
-	if (tnt_insert(t->stream, 512, t->object) == -1)
-		return -1;
-
-	return 0;
+	return tnt_insert(t->stream, 512, t->object);
 }
 
 static int db_tarantool16_replace(struct nb_db *db, struct nb_key *key)
@@ -143,11 +152,9 @@ static int db_tarantool16_replace(struct nb_db *db, struct nb_key *key)
 	tnt_object_add_array(t->object, 2);
 	encode_key(t->object, key);
 	tnt_object_add_str(t->object, t->value, t->value_size);
+	t->stream->reqid = nb.opts.get_time();
 
-	if (tnt_replace(t->stream, 512, t->object) == -1)
-		return -1;
-
-	return 0;
+	return tnt_replace(t->stream, 512, t->object);
 }
 
 static int db_tarantool16_delete(struct nb_db *db, struct nb_key *key)
@@ -157,11 +164,9 @@ static int db_tarantool16_delete(struct nb_db *db, struct nb_key *key)
 	tnt_object_reset(t->object);
 	tnt_object_add_array(t->object, 1);
 	encode_key(t->object, key);
+	t->stream->reqid = nb.opts.get_time();
 
-	if (tnt_delete(t->stream, 512, 0, t->object) == -1)
-		return -1;
-
-	return 0;
+	return tnt_delete(t->stream, 512, 0, t->object);
 }
 
 static int db_tarantool16_update(struct nb_db *db, struct nb_key *key)
@@ -178,11 +183,9 @@ static int db_tarantool16_update(struct nb_db *db, struct nb_key *key)
 	tnt_object_reset(t->object);
 	tnt_object_add_array(t->object, 1);
 	encode_key(t->object, key);
+	t->stream->reqid = nb.opts.get_time();
 
-	if (tnt_update(t->stream, 512, 0, t->object, t->update_buf) == -1)
-		return -1;
-
-	return 0;
+	return tnt_update(t->stream, 512, 0, t->object, t->update_buf);
 }
 
 static int db_tarantool16_select(struct nb_db *db, struct nb_key *key)
@@ -192,10 +195,35 @@ static int db_tarantool16_select(struct nb_db *db, struct nb_key *key)
 	tnt_object_reset(t->object);
 	tnt_object_add_array(t->object, 1);
 	encode_key(t->object, key);
+	t->stream->reqid = nb.opts.get_time();
 
-	if (tnt_select(t->stream, 512, 0, 1024, 0, 0, t->object) == -1)
+	return tnt_select(t->stream, 512, 0, 1024, 0, 0, t->object);
+}
+
+static int db_tarantool16_msg_len(const char *buf, size_t size)
+{
+	if (size < 5) {
+		return 5;
+	}
+	if (mp_typeof(*buf) != MP_UINT)
 		return -1;
+	size_t length = mp_decode_uint(&buf);
+	return length + 5;
+}
 
+static int db_tarantool16_recv_from_buf(char *buf, size_t size, size_t *off,
+					uint64_t *latency)
+{
+	struct tnt_reply reply;
+	int rc = tnt_reply(&reply, buf, size, off);
+	if (reply.code != 0) {
+		printf("server responded: %d, %-.*s\n", (int)reply.code,
+		       (int)(reply.error_end - reply.error), reply.error);
+	}
+	if (rc)
+		return rc;
+	if (latency)
+		*latency = nb.opts.get_time() - reply.sync;
 	return 0;
 }
 
@@ -227,20 +255,30 @@ static int db_tarantool16_recv(struct nb_db *db, int count, int *missed)
 	}
 
 	return 0;
+}
 
+static int db_tarantool16_get_fd(struct nb_db *db)
+{
+	struct db_tarantool16 *t = db->priv;
+	struct tnt_stream_net *sn = TNT_SNET_CAST(t->stream);
+	return sn->fd;
 }
 
 struct nb_db_if nb_db_tarantool16 =
 {
-	.name    = "tarantool1_6",
-	.init    = db_tarantool16_init,
-	.free    = db_tarantool16_free,
-	.connect = db_tarantool16_connect,
-	.close   = db_tarantool16_close,
-	.insert  = db_tarantool16_insert,
-	.replace = db_tarantool16_replace,
-	.del     = db_tarantool16_delete,
-	.update  = db_tarantool16_update,
-	.select  = db_tarantool16_select,
-	.recv    = db_tarantool16_recv
+	.name     = "tarantool1_6",
+	.init     = db_tarantool16_init,
+	.free     = db_tarantool16_free,
+	.connect  = db_tarantool16_connect,
+	.close    = db_tarantool16_close,
+	.insert   = db_tarantool16_insert,
+	.replace  = db_tarantool16_replace,
+	.del      = db_tarantool16_delete,
+	.update   = db_tarantool16_update,
+	.select   = db_tarantool16_select,
+	.recv     = db_tarantool16_recv,
+	.get_fd   = db_tarantool16_get_fd,
+	.recv_from_buf = db_tarantool16_recv_from_buf,
+	.msg_len  = db_tarantool16_msg_len,
+	.get_buf  = db_tarantool16_get_buf
 };

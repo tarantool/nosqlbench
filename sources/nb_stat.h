@@ -30,6 +30,8 @@
  * SUCH DAMAGE.
  */
 
+#include <pthread.h>
+
 struct nb_stat_avg {
 	int ps_read;
 	int ps_write;
@@ -79,6 +81,7 @@ struct nb_statistics {
 	struct nb_stat_final final;
 	struct nb_stat_avg *head, *tail;
 	int count_report;
+	pthread_mutex_t lock_stats;
 };
 
 void nb_statistics_init(struct nb_statistics *s, int size);
@@ -115,6 +118,6 @@ enum history_event_type {
 };
 
 void
-nb_history_add(struct nb_history *s, enum history_event_type e, int count);
+nb_history_add(struct nb_history *s, enum history_event_type e);
 
 #endif

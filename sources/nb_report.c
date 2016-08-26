@@ -50,6 +50,16 @@ static void nb_report_start(void)
 	printf("Server is %s:%d.\n",
 	       nb.opts.host,
 	       nb.opts.port);
+	printf("Report interval: %d sec\n", nb.opts.report_interval);
+	printf("Time units: %s\n", latency_unit_strs[nb.opts.latency_units]);
+	if (nb.opts.threads_policy == NB_THREADS_ATONCE) {
+		printf("Threads count: %d\n", nb.opts.threads_max);
+	} else {
+		printf("Threads count: from %d to %d, increasing on"
+		       " %d every %d sec\n", nb.opts.threads_start,
+		       nb.opts.threads_max, nb.opts.threads_increment,
+		       nb.opts.threads_interval);
+	}
 	printf("\n");
 }
 
@@ -74,18 +84,36 @@ static void nb_report_default_progress(int processed, int max)
 
 static void nb_report_default(void)
 {
-	printf("[%3d sec] [%2d threads] %7d req/s %7d read/s %7d write/s\n",
-	       nb.tick,
-	       nb.workers.count,
+	struct nb_histogram *period_hist = nb_histogram_new();
+	struct nb_worker *c = nb.workers.head;
+	while (c) {
+		nb_histogram_merge(period_hist, c->period_hist);
+		nb_histogram_clear(c->period_hist);
+		c = c->next;
+	}
+	if ((nb.tick - 1) / nb.opts.report_interval % 5 == 0) {
+		printf("\n\n.---------.---------.---------.----------------.----------------.------------.------------.------------.\n"
+		       "|  req/s  | read/s  | write/s | min lat. %s | max lat. %s |     90%%<   |     99%%<   |    99.9%%<  |\n"
+		       ".---------.---------.---------.----------------.----------------.------------.------------.------------.\n",
+		       latency_unit_strs[nb.opts.latency_units],
+		       latency_unit_strs[nb.opts.latency_units]);
+	}
+	printf("| %7d | %7d | %7d |   %10.2lf   |   %10.2lf   |%12.2lf|%12.2lf|%12.2lf|\n"
+	       ".---------.---------.---------.----------------.----------------.------------.------------.------------.\n",
 	       nb.stats.current->ps_req,
 	       nb.stats.current->ps_read,
-	       nb.stats.current->ps_write);
+	       nb.stats.current->ps_write,
+	       period_hist->min, period_hist->max,
+	       nb_histogram_percentile(period_hist, 0.90),
+	       nb_histogram_percentile(period_hist, 0.99),
+	       nb_histogram_percentile(period_hist, 0.999));
+	nb_histogram_delete(period_hist);
 }
 
 static void nb_report_default_final(void)
 {
 	char *report = 
-	"\n"
+	"\nTOTAL RPS STATISTICS:\n"
 	".----------.---------------.---------------.---------------.\n"
 	"|   type   |    minimal    |    average    |     maximum   |\n"
 	".----------.---------------.---------------.---------------.\n"
@@ -104,6 +132,15 @@ static void nb_report_default_final(void)
 	       nb.stats.final.ps_req_min,
 	       nb.stats.final.ps_req_avg,
 	       nb.stats.final.ps_req_max);
+	struct nb_histogram *res_hist;
+	printf("\nLATENCY HISTOGRAM:\n");
+	res_hist = nb_workers_merge_histogram(&nb.workers);
+	double PERCENTILES[] = { 0.05, 0.50, 0.95, 0.96, 0.97, 0.98, 0.99,
+		0.995, 0.999, 0.9995, 0.9999 };
+	size_t PERCENTILES_SIZE = sizeof(PERCENTILES) / sizeof(PERCENTILES[0]);
+	nb_histogram_dump(res_hist, latency_unit_strs[nb.opts.latency_units],
+			  PERCENTILES, PERCENTILES_SIZE);
+	nb_histogram_delete(res_hist);
 }
 
 static void nb_report_integral(void)

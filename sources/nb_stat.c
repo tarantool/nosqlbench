@@ -50,6 +50,7 @@ void nb_statistics_init(struct nb_statistics *s, int size)
 	s->tail = NULL;
 	memset(&s->current, 0, sizeof(s->current));
 	memset(&s->final, 0, sizeof(s->final));
+	pthread_mutex_init(&s->lock_stats, NULL);
 
 	nb_statistics_resize(s, size);
 }
@@ -257,7 +258,7 @@ unsigned long long nb_history_time(void)
 }
 
 void
-nb_history_add(struct nb_history *s, enum history_event_type e, int count) {
+nb_history_add(struct nb_history *s, enum history_event_type e) {
 	long long t = nb_history_time();
 	long long epoch = t * s->Smax / 1000000;
 	if (epoch > s->epoch) {
@@ -277,11 +278,11 @@ nb_history_add(struct nb_history *s, enum history_event_type e, int count) {
 	long long pos = epoch % s->Smax;
 	struct nb_stat *current = &s->S[pos];
 	if (e == RT_READ)
-		current->cnt_read += count;
+		current->cnt_read++;
 	else if (e == RT_WRITE)
-		current->cnt_write += count;
+		current->cnt_write++;
 	else if (e == RT_MISS)
-		current->cnt_miss += count;
+		current->cnt_miss++;
 	current->time_last_upd = t;
 }
 

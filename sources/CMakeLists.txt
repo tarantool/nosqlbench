@@ -1,9 +1,12 @@
 set(nb_bin nb)
 
-set(nb_libs tnt mc ${M_LIB})
+set(nb_libs tnt mc ev ${M_LIB})
+
 set(nb_src
 	nb_alloc.h
 	nb.c
+	async_io.c
+	async_io.h
 	nb_config.c
 	nb_config.h
 	nb_db.c
@@ -29,6 +32,7 @@ set(nb_src
 	nb_worker.h
 	nb_workload.c
 	nb_workload.h
+	${CMAKE_SOURCE_DIR}/third_party/histogram/nb_histogram.c
 )
 
 find_package (LevelDB QUIET)

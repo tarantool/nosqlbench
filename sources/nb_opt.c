@@ -34,9 +34,41 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/time.h>
+#include <time.h>
 
 #include "nb_alloc.h"
 #include "nb_opt.h"
+
+static uint64_t
+get_time_secs(void)
+{
+	return time(0);
+}
+
+static uint64_t
+get_time_milsecs(void)
+{
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	return 1000 * tv.tv_sec + tv.tv_usec / 1000;
+}
+
+static uint64_t
+get_time_micsecs(void)
+{
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	return 1000000 * tv.tv_sec + tv.tv_usec;
+}
+
+get_time_f time_functions[] = {
+	get_time_secs, get_time_milsecs, get_time_micsecs
+};
+
+const char *latency_unit_strs[] = {
+	"secs ", "msecs", "usecs"
+};
 
 void nb_opt_init(struct nb_options *opts)
 {
@@ -66,6 +98,10 @@ void nb_opt_init(struct nb_options *opts)
 	opts->port = 33013;
 	opts->buf_send = 16384;
 	opts->buf_recv = 16384;
+	opts->latency_measure_units = nb_strdup("microsec");
+	opts->latency_units = NB_LATENCY_MICSECS;
+	opts->get_time = time_functions[NB_LATENCY_MICSECS];
+	opts->rps = 0;
 }
 
 void nb_opt_free(struct nb_options *opts)
@@ -78,4 +114,5 @@ void nb_opt_free(struct nb_options *opts)
 	free(opts->key);
 	free(opts->key_dist);
 	free(opts->host);
+	free(opts->latency_measure_units);
 }

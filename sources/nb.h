@@ -30,6 +30,11 @@
  * SUCH DAMAGE.
  */
 
+#include "nb_stat.h"
+#include "nb_worker.h"
+#include "nb_opt.h"
+#include "nb_workload.h"
+
 struct nb {
 	struct nb_options opts;
 	struct nb_key_if *key;

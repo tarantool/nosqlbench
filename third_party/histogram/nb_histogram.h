@@ -1,5 +1,5 @@
-#ifndef NB_WORKLOAD_H_INCLUDED
-#define NB_WORKLOAD_H_INCLUDED
+#ifndef NB_HISTOGRAM_H_INCLUDED
+#define NB_HISTOGRAM_H_INCLUDED
 
 /*
  * Redistribution and use in source and binary forms, with or
@@ -30,46 +30,38 @@
  * SUCH DAMAGE.
  */
 
-#include "nb_db.h"
+#include <stdio.h>
 
-enum nb_request_type {
-	NB_REPLACE,
-	NB_UPDATE,
-	NB_DELETE,
-	NB_SELECT,
-	NB_REQUEST_MAX,
-	/* insert doesn't present in tests */
-	NB_INSERT
+extern const size_t NB_HISTOGRAM_BUCKETS_COUNT;
+
+struct nb_histogram {
+	double min;
+	double max;
+	double sum;
+	size_t size;
+	size_t *buckets;
 };
 
-struct nb_request {
-	enum nb_request_type type;
-	int count;
-	int requested;
-	int percent;
-	nb_db_reqf_t _do; 
-	struct nb_request *next, *prev;
-};
+struct nb_histogram *
+nb_histogram_new(void);
 
-struct nb_workload {
-	int count;
-	int count_write;
-	int count_read;
-	int requested, processed;
-	struct nb_request reqs[NB_REQUEST_MAX];
-	struct nb_request *head;
-	struct nb_request *current;
-};
+void
+nb_histogram_merge(struct nb_histogram *dest, struct nb_histogram *src);
 
-void nb_workload_init(struct nb_workload *workload, int count);
-void nb_workload_init_from(struct nb_workload *dest, struct nb_workload *src);
-void nb_workload_link(struct nb_workload *workload);
-void nb_workload_reset(struct nb_workload *workload);
+void
+nb_histogram_delete(struct nb_histogram *hist);
 
-void nb_workload_add(struct nb_workload *workload, enum nb_request_type type,
-		     nb_db_reqf_t req,
-		     int percent);
+void
+nb_histogram_add(struct nb_histogram *hist, double val);
 
-struct nb_request *nb_workload_fetch(struct nb_workload *workload);
+void
+nb_histogram_clear(struct nb_histogram *hist);
 
-#endif
+double
+nb_histogram_percentile(const struct nb_histogram *hist, double p);
+
+void
+nb_histogram_dump(const struct nb_histogram *hist, const char *interval_units,
+		  double *percentiles, size_t percentiles_size);
+
+#endif /* NB_HISTOGRAM_H_INCLUDED */
