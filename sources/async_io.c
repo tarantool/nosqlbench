@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <sys/socket.h>
 #include <pthread.h>
+#include <fcntl.h>
 
 #include "async_io.h"
 #include <ev.h>
@@ -92,6 +93,7 @@ async_io_new_internal(int sock, struct async_io_if *io_if, void *user_data)
 	obj->user_data = user_data;
 	obj->io_if = *io_if;
 	obj->sock = sock;
+	fcntl(sock, F_SETFL, O_NONBLOCK);
 	async_io_buf_create(&obj->read_buf);
 	async_io_buf_create(&obj->write_buf);
 	obj->loop = ev_loop_new(0);

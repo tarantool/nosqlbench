@@ -1,6 +1,8 @@
 #ifndef ASYNC_IO_H_INCLUDED
 #define ASYNC_IO_H_INCLUDED
 
+#include <stdint.h>
+
 /*
  * Redistribution and use in source and binary forms, with or
  * without modification, are permitted provided that the following
