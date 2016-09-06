@@ -29,6 +29,7 @@ struct async_io_object {
 	 */
 	double writes_ps;
 	struct ev_timer timeout_watcher;
+	uint32_t req_per_timeout;
 	/*
 	 * This timer every second checks the current rps and
 	 * updates writes_ps according to it.
@@ -118,9 +119,19 @@ struct async_io_object *async_io_new_rps(int sock, struct async_io_if *io_if,
 
 	obj->rps = rps;
 	obj->writes_ps = rps;
+	obj->req_per_timeout = 1;
 	ev_io_init(&obj->client, rw_callback, sock, EV_READ);
 	ev_io_start(obj->loop, &obj->client);
-	ev_timer_init(&obj->timeout_watcher, timeout_cb, 0.0, 1.0 / rps);
+	double send_interval = 1.0 / rps;
+	if (send_interval < 0.001) {
+		/*
+		 * Some libev backends don't support precision less
+		 * than millisecond.
+		 */
+		obj->req_per_timeout = 0.001 / send_interval;
+		send_interval = 0.001;
+	}
+	ev_timer_init(&obj->timeout_watcher, timeout_cb, 0.0, send_interval);
 	ev_timer_start(obj->loop, &obj->timeout_watcher);
 	ev_timer_init(&obj->rps_observer, rps_observer_cb, 1.0, 1.0);
 	ev_timer_start(obj->loop, &obj->rps_observer);
@@ -292,7 +303,12 @@ void rps_observer_cb(struct ev_loop *loop, ev_timer *timer,
 	/* Count of writes per second can't be negative. */
 	if (io_obj->writes_ps < 0)
 		io_obj->writes_ps = io_obj->rps;
-	ev_timer_set(&io_obj->timeout_watcher, 1.0 / io_obj->writes_ps, 1.0 / io_obj->writes_ps);
+	double send_interval = 1.0 / io_obj->writes_ps;
+	if (send_interval < 0.001) {
+		io_obj->req_per_timeout = 0.001 / send_interval;
+		send_interval = 0.001;
+	}
+	ev_timer_set(&io_obj->timeout_watcher, send_interval, send_interval);
 	ev_timer_again(io_obj->loop, &io_obj->timeout_watcher);
 }
 
@@ -301,5 +317,6 @@ void timeout_cb(struct ev_loop *loop, ev_timer *timer,
 {
 	struct async_io_object *io_obj;
 	io_obj = (struct async_io_object *)ev_userdata(loop);
-	write_callback(io_obj, &io_obj->client);
+	for (uint32_t i = 0; i < io_obj->req_per_timeout; ++i)
+		write_callback(io_obj, &io_obj->client);
 }
