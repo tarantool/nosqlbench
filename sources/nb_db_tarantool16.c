@@ -227,7 +227,9 @@ static int db_tarantool16_recv_from_buf(char *buf, size_t size, size_t *off,
 	return 0;
 }
 
-static int db_tarantool16_recv(struct nb_db *db, int count, int *missed)
+static int db_tarantool16_recv(struct nb_db *db, int count, int *missed,
+			       void (*latency_cb)(void *arg, uint64_t lat),
+			       void *lat_arg)
 {
 	(void)missed;
 	struct db_tarantool16 *t = db->priv;
@@ -243,6 +245,8 @@ static int db_tarantool16_recv(struct nb_db *db, int count, int *missed)
 			printf("server responded: %d, %-.*s\n", (int)r->code,
 			       (int)(r->error_end - r->error), r->error);
 		}
+		if (latency_cb)
+			latency_cb(lat_arg, nb.opts.get_time() - r->sync);
 	}
 	if (it.status == TNT_ITER_FAIL) {
 		if (TNT_SNET_CAST(t->stream)->error) {

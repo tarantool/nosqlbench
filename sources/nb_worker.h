@@ -30,6 +30,7 @@
  * SUCH DAMAGE.
  */
 
+#include "nb_db.h"
 #include "nb_histogram.h"
 #include "nb_workload.h"
 #include "nb_key.h"

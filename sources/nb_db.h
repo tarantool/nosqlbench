@@ -30,8 +30,10 @@
  * SUCH DAMAGE.
  */
 
+
 struct nb_db;
 struct nb_key;
+struct nb_options;
 
 typedef int (*nb_db_reqf_t)(struct nb_db *db, struct nb_key *key);
 
@@ -41,7 +43,9 @@ struct nb_db_if {
 	void (*free)(struct nb_db *db);
 	int (*connect)(struct nb_db *db, struct nb_options *opts);
 	void (*close)(struct nb_db *db);
-	int (*recv)(struct nb_db *db, int count, int *missed);
+	int (*recv)(struct nb_db *db, int count, int *missed,
+		    void (*latency_cb)(void *arg, uint64_t lat),
+		    void *lat_arg);
 	int (*get_fd)(struct nb_db *db);
 	int (*recv_from_buf)(char *buf, size_t size, size_t *off,
 			     uint64_t *latency);

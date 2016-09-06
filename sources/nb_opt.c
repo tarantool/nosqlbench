@@ -83,7 +83,7 @@ void nb_opt_init(struct nb_options *opts)
 	opts->threads_interval = 1;
 	opts->threads_increment = 1;
 	opts->request_count = 10000;
-	opts->request_batch_count = 1000;
+	opts->request_batch_count = 0;
 	opts->history_per_batch = 16;
 	opts->db = nb_strdup("tarantool");
 	opts->key = nb_strdup("string");

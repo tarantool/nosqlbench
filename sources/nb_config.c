@@ -240,11 +240,11 @@ static int nb_config_read(struct nb_config *cfg, struct tnt_tk *tk)
 			continue;
 		switch (it->type) {
 		case NB_CONFIG_INT:
-			if (!nb_config_readint(cfg, it->vi) == -1)
+			if (nb_config_readint(cfg, it->vi) == -1)
 				return -1;
 			break;
 		case NB_CONFIG_STRING:
-			if (!nb_config_readsz(cfg, it->vs) == -1)
+			if (nb_config_readsz(cfg, it->vs) == -1)
 				return -1;
 			break;
 		case NB_CONFIG_NONE:
@@ -313,8 +313,8 @@ int nb_config_parse(char *file)
 	struct nb_config cfg;
 	memset(&cfg, 0, sizeof(cfg));
 
-	if (tnt_lex_init(&cfg.lex, nb_lex_keywords, (unsigned char*)buf,
-			 size) == -1) {
+	if (!tnt_lex_init(&cfg.lex, nb_lex_keywords, (unsigned char*)buf,
+			 size)) {
 		free(buf);
 		return -1;
 	}

@@ -94,7 +94,7 @@ struct nb_options {
 	enum nb_latency_units latency_units;
 	get_time_f get_time;
 
-	uint32_t rps;
+	int rps;
 };
 
 void nb_opt_init(struct nb_options *opts);

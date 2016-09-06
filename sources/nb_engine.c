@@ -61,27 +61,21 @@ nb_worker_init(void) {
 	pthread_sigmask(SIG_BLOCK, &set, NULL);
 }
 
-static void *io_write(struct async_io_object *io_obj, size_t *size)
+static int io_write_impl(struct io_user_data *ud)
 {
-	struct io_user_data *ud;
-	ud = (struct io_user_data *)async_io_get_user_data(io_obj);
 	struct nb_worker *worker = ud->worker;
-	if (nb.is_done) {
-		async_io_finish(io_obj);
-		return NULL;
-	}
+	if (nb.is_done)
+		return 1;
 	/**
 	 * The request can be unset if it is first call of io_write
-	 * of if all requests already sent and need to rewind list of
+	 * or if all requests already sent and need to rewind list of
 	 * requests.
 	 */
 	if (ud->request == NULL) {
 		nb_workload_reset(&worker->workload);
 		ud->request = nb_workload_fetch(&worker->workload);
-		if (ud->request == NULL) {
-			async_io_finish(io_obj);
-			return NULL;
-		}
+		if (ud->request == NULL)
+			return 1;
 	} else {
 		/* If the previous request deleted a tuple then reinsert it. */
 		if (ud->prev_type == NB_DELETE) {
@@ -89,7 +83,7 @@ static void *io_write(struct async_io_object *io_obj, size_t *size)
 			worker->workload.requested++;
 			ud->prev_type = NB_INSERT;
 			nb_history_add(&worker->history, RT_WRITE);
-			return nb.db->get_buf(&worker->db, size);
+			return 0;
 		}
 	}
 	worker->key->generate(&worker->keyv, worker->workload.count);
@@ -100,6 +94,18 @@ static void *io_write(struct async_io_object *io_obj, size_t *size)
 		       NB_SELECT ? RT_READ : RT_WRITE);
 	ud->prev_type = ud->request->type;
 	ud->request = nb_workload_fetch(&worker->workload);
+	return 0;
+}
+
+static void *io_write(struct async_io_object *io_obj, size_t *size)
+{
+	struct io_user_data *ud;
+	ud = (struct io_user_data *)async_io_get_user_data(io_obj);
+	struct nb_worker *worker = ud->worker;
+	if (io_write_impl(ud)) {
+		async_io_finish(io_obj);
+		return NULL;
+	}
 	return nb.db->get_buf(&worker->db, size);
 }
 
@@ -107,6 +113,15 @@ static int io_msg_len(struct async_io_object *io_obj, void *buf, size_t size)
 {
 	(void)io_obj;
 	return nb.db->msg_len(buf, size);
+}
+
+static void process_latency(void *lat_arg, uint64_t latency)
+{
+	struct io_user_data *ud;
+	ud = (struct io_user_data *)lat_arg;
+	struct nb_worker *worker = ud->worker;
+	nb_histogram_add(worker->total_hist, latency);
+	nb_histogram_add(worker->period_hist, latency);
 }
 
 static int io_recv_from_buf(struct async_io_object *io_obj, char *buf,
@@ -117,8 +132,7 @@ static int io_recv_from_buf(struct async_io_object *io_obj, char *buf,
 	struct nb_worker *worker = ud->worker;
 	uint64_t latency = 0;
 	int rc = nb.db->recv_from_buf(buf, size, off, &latency);
-	nb_histogram_add(worker->total_hist, latency);
-	nb_histogram_add(worker->period_hist, latency);
+	process_latency(ud, latency);
 
 	nb_history_avg(&worker->history);
 	pthread_mutex_lock(&nb.stats.lock_stats);
@@ -141,22 +155,40 @@ static void *nb_worker(void *ptr)
 	userdata.worker = worker;
 	userdata.request = NULL;
 	userdata.prev_type = NB_INSERT;
+	if (nb.opts.request_batch_count) {
+		int rc = 0;
+		do {
+			int i = 0;
+			for (; i < nb.opts.request_batch_count; ++i) {
+				rc = io_write_impl(&userdata);
+				if (rc)
+					break;
+			}
+			worker->db.dif->recv(&worker->db, i, NULL, process_latency, &userdata);
+			nb_history_add(&worker->history, RT_MISS);
 
-	struct async_io_if io_if = {io_msg_len, io_write, io_recv_from_buf};
-	struct async_io_object *io_object;
-	int sock = nb.db->get_fd(&worker->db);
-	if (nb.opts.rps != 0) {
-		io_object = async_io_new_rps(sock, &io_if, nb.opts.rps,
-					     &userdata);
+			nb_history_avg(&worker->history);
+			pthread_mutex_lock(&nb.stats.lock_stats);
+			nb_statistics_set(&nb.stats, worker->id, &worker->history.Savg);
+			pthread_mutex_unlock(&nb.stats.lock_stats);
+		} while (!rc);
 	} else {
-		io_object = async_io_new(nb.db->get_fd(&worker->db), &io_if,
-					 &userdata);
-	}
-	if (io_object == NULL)
-		goto error;
-	async_io_start(io_object);
+		struct async_io_if io_if = {io_msg_len, io_write, io_recv_from_buf};
+		struct async_io_object *io_object;
+		int sock = nb.db->get_fd(&worker->db);
+		if (nb.opts.rps != 0) {
+			io_object = async_io_new_rps(sock, &io_if, nb.opts.rps,
+						     &userdata);
+		} else {
+			io_object = async_io_new(nb.db->get_fd(&worker->db), &io_if,
+						 &userdata);
+		}
+		if (io_object == NULL)
+			goto error;
+		async_io_start(io_object);
 
-	async_io_delete(io_object);
+		async_io_delete(io_object);
+	}
 error:
 	return NULL;
 }

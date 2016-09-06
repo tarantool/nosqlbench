@@ -84,7 +84,7 @@ nb_histogram_merge(struct nb_histogram *dest, struct nb_histogram *src)
 		dest->max = src->max;
 	dest->sum += src->sum;
 	dest->size += src->size;
-	for (int i = 0; i < NB_HISTOGRAM_BUCKETS_COUNT; ++i) {
+	for (size_t i = 0; i < NB_HISTOGRAM_BUCKETS_COUNT; ++i) {
 		dest->buckets[i] += src->buckets[i];
 	}
 }

@@ -4,6 +4,7 @@
 #include <sys/socket.h>
 #include <pthread.h>
 #include <fcntl.h>
+#include <errno.h>
 
 #include "async_io.h"
 #include <ev.h>
@@ -20,7 +21,8 @@ struct async_io_object {
 	struct ev_loop *loop;
 	char finish_flag;
 	int sock;
-	struct ev_io client;
+	struct ev_io r_client;
+	struct ev_io w_client;
 	/* Needed count of requests per second. */
 	uint32_t rps;
 	/*
@@ -73,14 +75,16 @@ static inline void async_io_buf_destroy(struct async_io_buf *buf)
 	free(buf->data);
 }
 
-static void rw_callback(struct ev_loop *loop, struct ev_io *watcher,
-			int revents);
-
 static void rps_observer_cb(struct ev_loop *loop, ev_timer *timer,
 			    int revent);
 
 static void timeout_cb(struct ev_loop *loop, ev_timer *timer,
 		       int revent);
+
+static void write_callback(struct ev_loop *loop, struct ev_io *watcher,
+			   int revents);
+static void read_callback(struct ev_loop *loop, struct ev_io *watcher,
+			  int revents);
 
 void *async_io_get_user_data(struct async_io_object *obj)
 {
@@ -107,8 +111,10 @@ struct async_io_object *async_io_new(int sock, struct async_io_if *io_if,
 {
 	struct async_io_object *obj = async_io_new_internal(sock, io_if, user_data);
 
-	ev_io_init(&obj->client, rw_callback, sock, EV_READ | EV_WRITE);
-	ev_io_start(obj->loop, &obj->client);
+	ev_io_init(&obj->r_client, read_callback, sock, EV_READ);
+	ev_io_init(&obj->w_client, write_callback, sock, EV_WRITE);
+	ev_io_start(obj->loop, &obj->r_client);
+	ev_io_start(obj->loop, &obj->w_client);
 	return obj;
 }
 
@@ -120,8 +126,8 @@ struct async_io_object *async_io_new_rps(int sock, struct async_io_if *io_if,
 	obj->rps = rps;
 	obj->writes_ps = rps;
 	obj->req_per_timeout = 1;
-	ev_io_init(&obj->client, rw_callback, sock, EV_READ);
-	ev_io_start(obj->loop, &obj->client);
+	ev_io_init(&obj->r_client, read_callback, sock, EV_READ);
+	ev_io_start(obj->loop, &obj->r_client);
 	double send_interval = 1.0 / rps;
 	if (send_interval < 0.001) {
 		/*
@@ -151,8 +157,12 @@ void async_io_start(struct async_io_object *obj)
 	ev_loop_destroy(obj->loop);
 }
 
-void read_callback(struct async_io_object *io_obj, struct ev_io *watcher)
+void read_callback(struct ev_loop *loop, struct ev_io *watcher, int revents)
 {
+	(void)watcher;
+	(void)revents;
+	struct async_io_object *io_obj;
+	io_obj = (struct async_io_object *)ev_userdata(loop);
 	struct async_io_buf *buffer = &io_obj->read_buf;
 	/* Calculate count of free bytes. */
 	size_t need_to_read = buffer->size - buffer->iter;
@@ -237,8 +247,12 @@ void async_io_finish(struct async_io_object *obj)
 	obj->finish_flag = 1;
 }
 
-void write_callback(struct async_io_object *io_obj, struct ev_io *watcher)
+void write_callback(struct ev_loop *loop, struct ev_io *watcher, int revents)
 {
+	(void)watcher;
+	(void)revents;
+	struct async_io_object *io_obj;
+	io_obj = (struct async_io_object *)ev_userdata(loop);
 	struct async_io_buf *buffer = &io_obj->write_buf;
 	int need_to_send = io_obj->buf_busy - buffer->iter;
 	if (need_to_send == 0) {
@@ -265,7 +279,9 @@ void write_callback(struct async_io_object *io_obj, struct ev_io *watcher)
 	int bytes_send = send(io_obj->sock, buffer->data + buffer->iter,
 			      need_to_send, 0);
 	if (bytes_send < 0) {
-		goto break_loop;
+		if (errno != EAGAIN)
+			goto break_loop;
+		return;
 	}
 	buffer->iter += bytes_send;
 	return;
@@ -273,21 +289,11 @@ break_loop:
 	ev_break(io_obj->loop, EVBREAK_ONE);
 }
 
-void rw_callback(struct ev_loop *loop, struct ev_io *watcher, int revents)
-{
-	struct async_io_object *io_obj;
-	io_obj = (struct async_io_object *)ev_userdata(loop);
-	if (revents & EV_READ) {
-		read_callback(io_obj, watcher);
-	}
-	if (revents & EV_WRITE) {
-		write_callback(io_obj, watcher);
-	}
-}
-
 void rps_observer_cb(struct ev_loop *loop, ev_timer *timer,
 		     int revent)
 {
+	(void)timer;
+	(void)revent;
 	struct async_io_object *io_obj;
 	io_obj = (struct async_io_object *)ev_userdata(loop);
 	uint32_t one_second_received;
@@ -315,8 +321,10 @@ void rps_observer_cb(struct ev_loop *loop, ev_timer *timer,
 void timeout_cb(struct ev_loop *loop, ev_timer *timer,
 		int revent)
 {
+	(void)timer;
+	(void)revent;
 	struct async_io_object *io_obj;
 	io_obj = (struct async_io_object *)ev_userdata(loop);
 	for (uint32_t i = 0; i < io_obj->req_per_timeout; ++i)
-		write_callback(io_obj, &io_obj->client);
+		write_callback(loop, &io_obj->w_client, 0);
 }
