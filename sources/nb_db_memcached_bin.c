@@ -82,9 +82,10 @@ static int db_memcached_bin_connect(struct nb_db *db, struct nb_options *opts)
 	tb_sesset(&t->s, TB_PORT, opts->port);
 	tb_sesset(&t->s, TB_SENDBUF, opts->buf_send);
 	tb_sesset(&t->s, TB_READBUF, opts->buf_recv);
+	tb_sesset(&t->s, TB_CONNECTTM, (int )60);
 	int rc = tb_sesconnect(&t->s);
 	if (rc == -1) {
-		printf("memcached_connect() failed: %d\n", t->s.errno_);
+		printf("memcached_connect() failed: %s\n", strerror(t->s.errno_));
 		return -1;
 	}
 	return 0;
