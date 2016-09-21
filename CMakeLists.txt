@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 2.6)
 
 project(nb)
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
+set(CMAKE_INCLUDE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake" ${CMAKE_INCLUDE_PATH})
 
 ## build options
 #
@@ -13,7 +14,8 @@ if(NOT CMAKE_BUILD_TYPE)
         "Choose the type of build, options are: Debug Release" FORCE)
 endif()
 
-find_package(Libev REQUIRED)
+set(LIBEV_FIND_REQUIRED ON)
+find_package(LibEV REQUIRED)
 
 ##
 ## cflags
@@ -36,5 +38,3 @@ include_directories("${PROJECT_SOURCE_DIR}/third_party/memcached/memcached")
 add_subdirectory(third_party)
 add_subdirectory(sources)
 add_subdirectory(plotter)
-
-message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
