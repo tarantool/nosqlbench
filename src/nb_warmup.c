@@ -52,7 +52,7 @@ struct io_user_data {
 	size_t i;
 };
 
-static void *io_write(struct async_io_object *io_obj, size_t *size)
+static void *io_write(struct async_io *io_obj, size_t *size)
 {
 	struct io_user_data *ud = (struct io_user_data *)async_io_get_user_data(io_obj);
 	if ((int)ud->i >= nb.opts.request_count || nb_signaled) {
@@ -67,13 +67,13 @@ static void *io_write(struct async_io_object *io_obj, size_t *size)
 	return nb.db->get_buf(&db, size);
 }
 
-static int io_msg_len(struct async_io_object *io_obj, void *buf, size_t size)
+static int io_msg_len(struct async_io *io_obj, void *buf, size_t size)
 {
 	(void)io_obj;
 	return nb.db->msg_len(buf, size);
 }
 
-static int io_recv_from_buf(struct async_io_object *obj, char *buf, size_t size, size_t *off)
+static int io_recv_from_buf(struct async_io *obj, char *buf, size_t size, size_t *off)
 {
 	(void)obj;
 	return nb.db->recv_from_buf(buf, size, off, NULL);
@@ -95,7 +95,7 @@ int nb_warmup(void)
 	}
 	struct io_user_data userdata = {&key, 0};
 	struct async_io_if io_if = {io_msg_len, io_write, io_recv_from_buf};
-	struct async_io_object *io_object = async_io_new(nb.db->get_fd(&db), &io_if, &userdata);
+	struct async_io *io_object = async_io_new(nb.db->get_fd(&db), &io_if, &userdata);
 	if (io_object == NULL)
 		goto error;
 	async_io_start(io_object);

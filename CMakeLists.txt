@@ -17,10 +17,10 @@ endif()
 set(LIBEV_FIND_REQUIRED ON)
 find_package(LibEV REQUIRED)
 
-##
-## cflags
-##
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread -std=gnu99 -Wall -Wextra -g")
+#
+# cflags
+#
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread -Wall -Wextra -g")
 
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -march=native")
@@ -36,5 +36,5 @@ include_directories("${PROJECT_SOURCE_DIR}/third_party/memcached")
 include_directories("${PROJECT_SOURCE_DIR}/third_party/memcached/memcached")
 
 add_subdirectory(third_party)
-add_subdirectory(sources)
+add_subdirectory(src)
 add_subdirectory(plotter)

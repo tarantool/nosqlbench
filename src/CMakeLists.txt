@@ -1,5 +1,8 @@
 set(nb_bin nb)
 
+# -Wno-strict-aliasing is for libev
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -Wno-strict-aliasing -D_GNU_SOURCE")
+
 set(nb_libs tnt mc ev ${M_LIB})
 
 set(nb_src

@@ -97,7 +97,7 @@ static int io_write_impl(struct io_user_data *ud)
 	return 0;
 }
 
-static void *io_write(struct async_io_object *io_obj, size_t *size)
+static void *io_write(struct async_io *io_obj, size_t *size)
 {
 	struct io_user_data *ud;
 	ud = (struct io_user_data *)async_io_get_user_data(io_obj);
@@ -109,7 +109,7 @@ static void *io_write(struct async_io_object *io_obj, size_t *size)
 	return nb.db->get_buf(&worker->db, size);
 }
 
-static int io_msg_len(struct async_io_object *io_obj, void *buf, size_t size)
+static int io_msg_len(struct async_io *io_obj, void *buf, size_t size)
 {
 	(void)io_obj;
 	return nb.db->msg_len(buf, size);
@@ -124,7 +124,7 @@ static void process_latency(void *lat_arg, uint64_t latency)
 	nb_histogram_add(worker->period_hist, latency);
 }
 
-static int io_recv_from_buf(struct async_io_object *io_obj, char *buf,
+static int io_recv_from_buf(struct async_io *io_obj, char *buf,
 			    size_t size, size_t *off)
 {
 	struct io_user_data *ud;
@@ -174,7 +174,7 @@ static void *nb_worker(void *ptr)
 		} while (!rc);
 	} else {
 		struct async_io_if io_if = {io_msg_len, io_write, io_recv_from_buf};
-		struct async_io_object *io_object;
+		struct async_io *io_object;
 		int sock = nb.db->get_fd(&worker->db);
 		if (nb.opts.rps != 0) {
 			io_object = async_io_new_rps(sock, &io_if, nb.opts.rps,

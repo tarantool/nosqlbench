@@ -40,6 +40,7 @@
 #include "nb_db.h"
 #include "nb_db_memcached_bin.h"
 
+#include <sys/types.h>
 #include "memcached/mc.h"
 #include "memcached/session.h"
 

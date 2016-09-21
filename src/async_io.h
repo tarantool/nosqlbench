@@ -1,8 +1,5 @@
-#ifndef ASYNC_IO_H_INCLUDED
-#define ASYNC_IO_H_INCLUDED
-
-#include <stdint.h>
-
+#ifndef NOSQLBENCH_ASYNC_IO_H_INCLUDED
+#define NOSQLBENCH_ASYNC_IO_H_INCLUDED
 /*
  * Redistribution and use in source and binary forms, with or
  * without modification, are permitted provided that the following
@@ -31,43 +28,44 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+#include <stdint.h>
 
 /**
  * There is described API for making asynchronous reading and writing
  * to socket in one thread.
  *
- * async_io_object - a main structure that is used for managing async io.
+ * async_io - a main structure that is used for managing async io.
  */
-struct async_io_object;
+struct async_io;
 
 /**
  * This structure represents an interface
  *   - for fetching messages from the given buffer
  *   - for getting new messages and send them to network
  *   - for parsing this messages
- * The user of async_io_object must implement this interface.
+ * The user of async_io must implement this interface.
  */
 struct async_io_if {
 	/**
-	 * Return length of the message beginnig of that
+	 * Return length of the message beginning of that
 	 * stored in given buffer.
 	 */
-	int (*msg_len)(struct async_io_object *obj, void *buf, size_t size);
+	int (*msg_len)(struct async_io *obj, void *buf, size_t size);
 	/**
 	 * Return a new message for sending it to network and write size
 	 * of message to @arg size. If there are no new messages return NULL.
 	 */
-	void *(*write)(struct async_io_object *io_obj, size_t *size);
+	void *(*write)(struct async_io *io_obj, size_t *size);
 	/**
 	 * Process new message that stored in the given buffer (@arg buf)
 	 * and write length of the processed message to @arg off.
 	 */
-	int (*recv_from_buf)(struct async_io_object *obj, char *buf,
+	int (*recv_from_buf)(struct async_io *obj, char *buf,
 			     size_t size, size_t *off);
 };
 
 /**
- * Allocate and initialize new async_io_object.
+ * Allocate and initialize new async_io.
  * @arg sock      - socket for reading and writing to it.
  * @arg io_if     - an implemented interface for working with the bytes stream
  *   (@sa struct async_io_if).
@@ -75,10 +73,11 @@ struct async_io_if {
  *   be retreived in all functions of @arg io_if by calling
  *   async_io_get_user_data.
  */
-struct async_io_object *async_io_new(int sock, struct async_io_if *io_if, void *user_data);
+struct async_io *
+async_io_new(int sock, struct async_io_if *io_if, void *user_data);
 
 /**
- * Allocate and initialize new async_io_object that after starting will be
+ * Allocate and initialize new async_io that after starting will be
  * trying to support defined RPS (requests per second).
  * @arg sock      - socket for reading and writing to it.
  * @arg io_if     - an implemented interface for working with the bytes stream
@@ -88,29 +87,34 @@ struct async_io_object *async_io_new(int sock, struct async_io_if *io_if, void *
  *   be retreived in all functions of @arg io_if by calling
  *   async_io_get_user_data.
  */
-struct async_io_object *async_io_new_rps(int sock, struct async_io_if *io_if,
+struct async_io *
+async_io_new_rps(int sock, struct async_io_if *io_if,
 					 uint32_t rps, void *user_data);
 
 /**
  * Return the data that was passed to async_io_new as @arg user_data.
  */
-void *async_io_get_user_data(struct async_io_object *obj);
+void *
+async_io_get_user_data(struct async_io *obj);
 
 /**
  * Start event loop that blocks current thread and listens socket on
  * writing or reading bytes capability.
  */
-void async_io_start(struct async_io_object *obj);
+void
+async_io_start(struct async_io *obj);
 
 /**
  * Prepare to finish event loop. After this function is called
  * and all answers on all requests will be received the event loop will break.
  */
-void async_io_finish(struct async_io_object *obj);
+void
+async_io_finish(struct async_io *obj);
 
 /**
  * Free memory allocated in async_io_new.
  */
-void async_io_delete(struct async_io_object *obj);
+void
+async_io_delete(struct async_io *obj);
 
 #endif
