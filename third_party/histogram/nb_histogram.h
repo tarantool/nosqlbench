@@ -1,3 +1,5 @@
+#ifndef NB_HISTOGRAM_H_INCLUDED
+#define NB_HISTOGRAM_H_INCLUDED
 
 /*
  * Redistribution and use in source and binary forms, with or
@@ -28,54 +30,38 @@
  * SUCH DAMAGE.
  */
 
-#include <stdlib.h>
-#include <stdint.h>
-#include <inttypes.h>
-#include <stdarg.h>
 #include <stdio.h>
-#include <string.h>
 
-#include "nb_alloc.h"
-#include "nb_opt.h"
+extern const size_t NB_HISTOGRAM_BUCKETS_COUNT;
 
-void nb_opt_init(struct nb_options *opts)
-{
-	opts->benchmark_policy = NB_BENCHMARK_NOLIMIT;
-	opts->report_interval = 1;
-	opts->time_limit = 0;
-	opts->report = nb_strdup("default");
-	opts->csv_file = NULL;
-	opts->threads_policy = NB_THREADS_ATONCE;
-	opts->threads_start = 10;
-	opts->threads_max = 10;
-	opts->threads_interval = 1;
-	opts->threads_increment = 1;
-	opts->request_count = 10000;
-	opts->request_batch_count = 1000;
-	opts->history_per_batch = 16;
-	opts->db = nb_strdup("tarantool");
-	opts->key = nb_strdup("string");
-	opts->key_dist = nb_strdup("uniform");
-	opts->key_dist_iter = 4;
-	opts->value_size = 16;
-	opts->dist_replace = 40;
-	opts->dist_update = 10;
-	opts->dist_delete = 10;
-	opts->dist_select = 40;
-	opts->host = nb_strdup("127.0.0.1");
-	opts->port = 33013;
-	opts->buf_send = 16384;
-	opts->buf_recv = 16384;
-}
+struct nb_histogram {
+	double min;
+	double max;
+	double sum;
+	size_t size;
+	size_t *buckets;
+};
 
-void nb_opt_free(struct nb_options *opts)
-{
-	free(opts->benchmark_policy_name);
-	free(opts->threads_policy_name);
-	free(opts->report);
-	free(opts->csv_file);
-	free(opts->db);
-	free(opts->key);
-	free(opts->key_dist);
-	free(opts->host);
-}
+struct nb_histogram *
+nb_histogram_new(void);
+
+void
+nb_histogram_merge(struct nb_histogram *dest, struct nb_histogram *src);
+
+void
+nb_histogram_delete(struct nb_histogram *hist);
+
+void
+nb_histogram_add(struct nb_histogram *hist, double val);
+
+void
+nb_histogram_clear(struct nb_histogram *hist);
+
+double
+nb_histogram_percentile(const struct nb_histogram *hist, double p);
+
+void
+nb_histogram_dump(const struct nb_histogram *hist, const char *interval_units,
+		  double *percentiles, size_t percentiles_size);
+
+#endif /* NB_HISTOGRAM_H_INCLUDED */

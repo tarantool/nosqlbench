@@ -40,6 +40,7 @@
 #include "nb_db.h"
 #include "nb_db_memcached_bin.h"
 
+#include <sys/types.h>
 #include "memcached/mc.h"
 #include "memcached/session.h"
 
@@ -164,8 +165,12 @@ static int db_memcached_bin_select(struct nb_db *db, struct nb_key *key)
 	return 0;
 }
 
-static int db_memcached_bin_recv(struct nb_db *db, int count, int *missed)
+static int db_memcached_bin_recv(struct nb_db *db, int count, int *missed,
+				 void (*latency_cb)(void *arg, uint64_t lat),
+				 void *lat_arg)
 {
+	(void)latency_cb;
+	(void)lat_arg;
 	struct db_memcached_bin *t = db->priv;
 	int rc = tb_sessync(&t->s);
 	if (rc == -1) {

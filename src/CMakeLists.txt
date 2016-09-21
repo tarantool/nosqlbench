@@ -1,9 +1,15 @@
 set(nb_bin nb)
 
-set(nb_libs tnt mc ${M_LIB})
+# -Wno-strict-aliasing is for libev
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -Wno-strict-aliasing -D_GNU_SOURCE")
+
+set(nb_libs tnt mc ev ${M_LIB})
+
 set(nb_src
 	nb_alloc.h
 	nb.c
+	async_io.c
+	async_io.h
 	nb_config.c
 	nb_config.h
 	nb_db.c
@@ -29,6 +35,7 @@ set(nb_src
 	nb_worker.h
 	nb_workload.c
 	nb_workload.h
+	${CMAKE_SOURCE_DIR}/third_party/histogram/nb_histogram.c
 )
 
 find_package (LevelDB QUIET)

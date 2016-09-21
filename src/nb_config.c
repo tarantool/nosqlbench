@@ -97,7 +97,9 @@ enum {
 	NB_TK_SERVER,
 	NB_TK_PORT,
 	NB_TK_BUF_RECV,
-	NB_TK_BUF_SEND
+	NB_TK_BUF_SEND,
+	NB_TK_LATENCY_MEASURE_UNITS,
+	NB_TK_RPS,
 };
 
 #define NB_DECLARE_KEYWORD_DEF(NAME, ID) { NAME, sizeof(NAME) - 1, ID }
@@ -133,6 +135,8 @@ static struct tnt_lex_keyword nb_lex_keywords[] =
 	NB_DECLARE_KEYWORD("port", NB_TK_PORT),
 	NB_DECLARE_KEYWORD("buf_recv", NB_TK_BUF_RECV),
 	NB_DECLARE_KEYWORD("buf_send", NB_TK_BUF_SEND),
+	NB_DECLARE_KEYWORD("latency_measure_units", NB_TK_LATENCY_MEASURE_UNITS),
+	NB_DECLARE_KEYWORD("rps", NB_TK_RPS),
 	NB_DECLARE_KEYWORD_END()
 };
 
@@ -172,6 +176,8 @@ struct nb_config_index nb_config_index[] =
 	NB_DECLARE_OPT_INT(NB_TK_PORT, &nb.opts.port),
 	NB_DECLARE_OPT_INT(NB_TK_BUF_RECV, &nb.opts.buf_recv),
 	NB_DECLARE_OPT_INT(NB_TK_BUF_SEND, &nb.opts.buf_send),
+	NB_DECLARE_OPT_STR(NB_TK_LATENCY_MEASURE_UNITS, &nb.opts.latency_measure_units),
+	NB_DECLARE_OPT_INT(NB_TK_RPS, &nb.opts.rps),
 	NB_DECLARE_OPT_END()
 };
 
@@ -234,11 +240,11 @@ static int nb_config_read(struct nb_config *cfg, struct tnt_tk *tk)
 			continue;
 		switch (it->type) {
 		case NB_CONFIG_INT:
-			if (!nb_config_readint(cfg, it->vi) == -1)
+			if (nb_config_readint(cfg, it->vi) == -1)
 				return -1;
 			break;
 		case NB_CONFIG_STRING:
-			if (!nb_config_readsz(cfg, it->vs) == -1)
+			if (nb_config_readsz(cfg, it->vs) == -1)
 				return -1;
 			break;
 		case NB_CONFIG_NONE:
@@ -307,8 +313,8 @@ int nb_config_parse(char *file)
 	struct nb_config cfg;
 	memset(&cfg, 0, sizeof(cfg));
 
-	if (tnt_lex_init(&cfg.lex, nb_lex_keywords, (unsigned char*)buf,
-			 size) == -1) {
+	if (!tnt_lex_init(&cfg.lex, nb_lex_keywords, (unsigned char*)buf,
+			 size)) {
 		free(buf);
 		return -1;
 	}

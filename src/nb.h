@@ -1,5 +1,5 @@
-#ifndef NB_WORKER_H_INCLUDED
-#define NB_WORKER_H_INCLUDED
+#ifndef NB_H_INCLUDED
+#define NB_H_INCLUDED
 
 /*
  * Redistribution and use in source and binary forms, with or
@@ -30,32 +30,32 @@
  * SUCH DAMAGE.
  */
 
-struct nb_worker {
-	int id;
-	struct nb_db db;
+#include "nb_stat.h"
+#include "nb_worker.h"
+#include "nb_opt.h"
+#include "nb_workload.h"
+
+struct nb {
+	struct nb_options opts;
 	struct nb_key_if *key;
-	struct nb_key keyv;
+	struct nb_key_distribution_if *key_dist;
+	struct nb_db_if *db;
+	struct nb_report_if *report;
 	struct nb_workload workload;
-	struct nb_history history;
-	pthread_t tid;
-	struct nb_worker *next;
+	struct nb_workers workers;
+	struct nb_statistics stats;
+	volatile int is_done;
+	int tick;
 };
 
-struct nb_workers {
-	struct nb_worker *head, *tail;
-	volatile int count;
-};
+extern struct nb nb;
 
-void nb_workers_init(struct nb_workers *workers);
-void nb_workers_free(struct nb_workers *workers);
+static inline int nb_period_equal(int period) {
+	return nb.tick > 0 && nb.tick % period == 0;
+}
 
-struct nb_worker*
-nb_workers_create(struct nb_workers *workers, struct nb_db_if *dif,
-		  struct nb_key_if *kif,
-		  struct nb_key_distribution_if *distif,
-		  struct nb_workload *workload, int history_max,
-		  void *(*cb)(void *));
-
-void nb_workers_join(struct nb_workers *workers);
+static inline void nb_tick(void) {
+	nb.tick++;
+}
 
 #endif

@@ -41,6 +41,16 @@ enum nb_policy_threads {
 	NB_THREADS_INTERVAL
 };
 
+enum nb_latency_units {
+	NB_LATENCY_SECS = 0,
+	NB_LATENCY_MILSECS,
+	NB_LATENCY_MICSECS
+};
+
+typedef uint64_t (*get_time_f)(void);
+extern get_time_f time_functions[];
+extern const char *latency_unit_strs[];
+
 struct nb_options {
 	enum nb_policy_benchmark benchmark_policy;
 	char *benchmark_policy_name;
@@ -79,6 +89,12 @@ struct nb_options {
 	int port;
 	int buf_send;
 	int buf_recv;
+
+	char *latency_measure_units;
+	enum nb_latency_units latency_units;
+	get_time_f get_time;
+
+	int rps;
 };
 
 void nb_opt_init(struct nb_options *opts);

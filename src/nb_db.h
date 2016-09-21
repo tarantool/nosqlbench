@@ -1,5 +1,5 @@
-#ifndef NB_WORKLOAD_H_INCLUDED
-#define NB_WORKLOAD_H_INCLUDED
+#ifndef NB_DB_H_INCLUDED
+#define NB_DB_H_INCLUDED
 
 /*
  * Redistribution and use in source and binary forms, with or
@@ -30,44 +30,41 @@
  * SUCH DAMAGE.
  */
 
-enum nb_request_type {
-	NB_REPLACE,
-	NB_UPDATE,
-	NB_DELETE,
-	NB_SELECT,
-	NB_REQUEST_MAX,
-	/* insert doesn't present in tests */
-	NB_INSERT
+
+struct nb_db;
+struct nb_key;
+struct nb_options;
+
+typedef int (*nb_db_reqf_t)(struct nb_db *db, struct nb_key *key);
+
+struct nb_db_if {
+	const char *name;
+	int (*init)(struct nb_db *db, size_t value_size);
+	void (*free)(struct nb_db *db);
+	int (*connect)(struct nb_db *db, struct nb_options *opts);
+	void (*close)(struct nb_db *db);
+	int (*recv)(struct nb_db *db, int count, int *missed,
+		    void (*latency_cb)(void *arg, uint64_t lat),
+		    void *lat_arg);
+	int (*get_fd)(struct nb_db *db);
+	int (*recv_from_buf)(char *buf, size_t size, size_t *off,
+			     uint64_t *latency);
+	int (*msg_len)(const char *buf, size_t size);
+	void *(*get_buf)(struct nb_db *db, size_t *size);
+	nb_db_reqf_t insert;
+	nb_db_reqf_t replace;
+	nb_db_reqf_t update;
+	nb_db_reqf_t del;
+	nb_db_reqf_t select;
 };
 
-struct nb_request {
-	enum nb_request_type type;
-	int count;
-	int requested;
-	int percent;
-	nb_db_reqf_t _do; 
-	struct nb_request *next, *prev;
+struct nb_db {
+	struct nb_db_if *dif;
+	void *priv;
 };
 
-struct nb_workload {
-	int count;
-	int count_write;
-	int count_read;
-	int requested, processed;
-	struct nb_request reqs[NB_REQUEST_MAX];
-	struct nb_request *head;
-	struct nb_request *current;
-};
+extern struct nb_db_if *nb_dbs[];
 
-void nb_workload_init(struct nb_workload *workload, int count);
-void nb_workload_init_from(struct nb_workload *dest, struct nb_workload *src);
-void nb_workload_link(struct nb_workload *workload);
-void nb_workload_reset(struct nb_workload *workload);
-
-void nb_workload_add(struct nb_workload *workload, enum nb_request_type type,
-		     nb_db_reqf_t req,
-		     int percent);
-
-struct nb_request *nb_workload_fetch(struct nb_workload *workload);
+struct nb_db_if *nb_db_match(const char *name);
 
 #endif
