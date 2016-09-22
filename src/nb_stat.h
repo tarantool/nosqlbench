@@ -31,6 +31,7 @@
  */
 
 #include <pthread.h>
+#include <assert.h>
 
 struct nb_stat_avg {
 	int ps_read;

@@ -38,6 +38,8 @@
 #include <tarantool/tnt_net.h>
 #include <tarantool/tnt_opt.h>
 
+#include "msgpuck/msgpuck.h"
+
 #include "nb_alloc.h"
 #include "nb.h"
 #include "nb_key.h"
